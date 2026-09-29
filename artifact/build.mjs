@@ -92,7 +92,10 @@ ${body}
   const files = { 'index.html': indexHtml, 'app.js': appJs, 'app.css': src('style.css'), 'manifest.webmanifest': manifest };
   for (const icon of ICONS) files[icon.file] = drawIcon(icon);
 
-  const hash = createHash('sha256');
+  // The headers are hashed too: the worker caches the page with its headers, so a CSP-only
+  // change must still change sw.js, or installed clients keep the old policy.
+  const headers = src('site-headers.txt').replaceAll('{SLUG}', SLUG);
+  const hash = createHash('sha256').update('_headers').update(headers);
   for (const name of Object.keys(files).sort()) hash.update(name).update(files[name]);
   const cache = 'k9-' + hash.digest('hex').slice(0, 12);
   // './' is the start URL; index.html itself is not listed, since the host redirects it to './'.
@@ -102,7 +105,7 @@ ${body}
   files['sw.js'] = sw;
 
   for (const [name, data] of Object.entries(files)) writeFileSync(join(app, name), data);
-  writeFileSync(join(root, '_headers'), src('site-headers.txt').replaceAll('{SLUG}', SLUG));
+  writeFileSync(join(root, '_headers'), headers);
   const kb = Object.values(files).reduce((a, d) => a + d.length, 0) / 1024;
   console.log(`built dist/site/${SLUG}/ (${Object.keys(files).length} files, ${kb.toFixed(1)} KB, cache ${cache})`);
 }

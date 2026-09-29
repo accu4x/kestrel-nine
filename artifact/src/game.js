@@ -785,8 +785,15 @@
   }
   // ------------------------------------------------------------ save files (site edition, item 27)
   const saveSchema = () => ({
-    campaignIds: C.CAMPAIGN.map((c) => c.id),
+    campaigns: Object.fromEntries(C.CAMPAIGN.map((c) => [c.id, c.type])),
     typeDirs: Object.fromEntries(Object.keys(E.TYPES).map((t) => [t, E.TYPES[t].dir])),
+    // Titles are rebuilt from the same specs the game flies, never read from the file.
+    titleOf(kind, type, seedKey) {
+      if (kind === 'campaign') return campaignSpec(C.CAMPAIGN.find((c) => c.id === seedKey)).title;
+      if (kind === 'daily') return dailySpec(type).title;
+      const [, , size, code] = seedKey.split('-');
+      return arcadeSpec(type, size, code).title;
+    },
   });
   function savePanel() {
     const file = h('input', { type: 'file', accept: 'application/json,.json', hidden: true, id: 'save-file' });

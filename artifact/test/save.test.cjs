@@ -8,9 +8,16 @@ const C = require('../src/content.js');
 
 let failed = 0;
 const assert = (c, m) => { if (!c) { console.error('FAIL', m); failed++; process.exitCode = 1; } };
+// Mirrors saveSchema() in game.js, which rebuilds titles from the game's own specs.
+const label = (t) => C.TYPE_INFO[t].label.toLowerCase();
 const schema = {
-  campaignIds: C.CAMPAIGN.map((c) => c.id),
+  campaigns: Object.fromEntries(C.CAMPAIGN.map((c) => [c.id, c.type])),
   typeDirs: Object.fromEntries(Object.keys(E.TYPES).map((t) => [t, E.TYPES[t].dir])),
+  titleOf(kind, type, seedKey) {
+    if (kind === 'campaign') return C.CAMPAIGN.find((c) => c.id === seedKey).title;
+    if (kind === 'daily') return 'Daily ' + label(type);
+    return 'Arcade ' + label(type) + ' ' + seedKey.split('-')[2];
+  },
 };
 const NOW = Date.UTC(2026, 8, 28, 12);
 const run = (o) => Object.assign({
@@ -36,7 +43,8 @@ const rejects = (name, mutate) => {
   assert(!r.ok && typeof r.error === 'string', 'should reject: ' + name);
 };
 
-// Round trip
+// Round trip (titles are left out of the file and rebuilt on import)
+assert(good().progress.runs.every((r) => !('title' in r)), 'export carries no free text: run titles are left out');
 const back = parse(good());
 assert(back.ok, 'valid save should parse: ' + back.error);
 assert(back.ok && JSON.stringify(back.progress) === JSON.stringify(prog), 'round trip should restore progress exactly');
@@ -80,7 +88,10 @@ rejects('run seedKey for an unknown mission', (d) => { d.progress.runs[0].seedKe
 rejects('run arcade seedKey malformed', (d) => { d.progress.runs[2].seedKey = 'a-treaty-M-<b>'; });
 rejects('run advisories out of range', (d) => { d.progress.runs[0].advisoriesUsed = 4; });
 rejects('run from the future', (d) => { d.progress.runs[0].ts = NOW + 30 * 86400e3; });
-rejects('run title too long', (d) => { d.progress.runs[0].title = 'x'.repeat(81); });
+rejects('daily key names another job', (d) => { d.progress.runs[1].seedKey = 'd-2026-09-28-treaty'; });
+rejects('arcade key names another job', (d) => { d.progress.runs[2].type = 'survey'; });
+rejects('campaign key belongs to another job', (d) => { d.progress.runs[0].seedKey = 'c2'; });
+rejects('prototype key as a type', (d) => { d.progress.runs[0].type = 'constructor'; });
 rejects('run missing a field', (d) => { delete d.progress.runs[0].best; });
 
 // Unknown fields inside a run are dropped, not trusted
@@ -88,11 +99,11 @@ const extra = good(); extra.progress.runs[0].html = '<script>alert(1)</script>';
 const xr = parse(extra);
 assert(xr.ok && !('html' in xr.progress.runs[0]) && !('uid' in xr.progress.runs[0]), 'unknown run fields are dropped');
 
-// HTML in a title field stays inert: it survives only as a literal string, and the game shell
-// has no way to render a string as markup.
+// HTML in a title field stays inert: the file's title is ignored and rebuilt from IDs, and the
+// game shell has no way to render a string as markup.
 const html = good(); html.progress.runs[0].title = '<img src=x onerror=alert(1)>';
 const hr = parse(html);
-assert(hr.ok && hr.progress.runs[0].title === '<img src=x onerror=alert(1)>', 'title kept as literal text');
+assert(hr.ok && hr.progress.runs[0].title === 'Cold Start', 'a title in the file is ignored and rebuilt');
 const game = fs.readFileSync(path.join(__dirname, '..', 'src', 'game.js'), 'utf8');
 assert(!/innerHTML|outerHTML|insertAdjacentHTML|document\.write|DOMParser|createContextualFragment/.test(game), 'game.js must never parse strings as HTML');
 

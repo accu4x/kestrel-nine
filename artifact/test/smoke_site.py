@@ -93,7 +93,12 @@ def main() -> int:
         page.goto(base)
         page.wait_for_selector("#console button")
         check("default-src 'self'" in (page.evaluate("fetch(location.href).then(r => r.headers.get('content-security-policy'))") or ""), "CSP header served")
-        page.evaluate("navigator.serviceWorker.ready")
+        # ready never rejects, so a broken worker would hang the test; bound it instead.
+        ready = page.evaluate("Promise.race([navigator.serviceWorker.ready.then(() => true), new Promise((r) => setTimeout(() => r(false), 10000))])")
+        check(ready, "service worker installs within 10 s")
+        if not ready:
+            browser.close()
+            return 1
         page.reload()
         page.wait_for_selector("#console button")
         check(page.evaluate("!!navigator.serviceWorker.controller"), "service worker controls the page")

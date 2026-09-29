@@ -5,8 +5,9 @@
  * page content. It checks everything before anything is touched and returns either
  * { ok: true, progress } or { ok: false, error }. Errors are fixed strings and never echo the
  * file. Unknown keys at the top level, in `progress`, in `done` (not a campaign id) and in
- * `rep` reject the file; unknown fields inside a run or a `done` entry are dropped. Text
- * that survives (run titles) is plain data: the game only ever sets it with textContent.
+ * `rep` reject the file; unknown fields inside a run or a `done` entry are dropped.
+ * What travels is IDs and numbers, never free text (item 27): export leaves run titles out, and
+ * import rebuilds each title from the validated kind, type and seed key through schema.titleOf.
  */
 (function (root) {
   'use strict';
@@ -32,21 +33,25 @@
   function exportSave(prog, now) {
     return {
       app: APP, v: V, exported: (now || new Date()).toISOString(),
-      progress: JSON.parse(JSON.stringify({ done: prog.done || {}, rep: prog.rep || {}, runs: prog.runs || [] })),
+      progress: JSON.parse(JSON.stringify({
+        done: prog.done || {}, rep: prog.rep || {},
+        runs: (prog.runs || []).map((r) => { const c = Object.assign({}, r); delete c.title; return c; }),
+      })),
     };
   }
 
   // One run as runRecord() in game.js writes it. Returns the cleaned run, or null.
   function cleanRun(r, schema, now) {
     if (!isObj(r)) return null;
-    const dir = schema.typeDirs[r.type];
-    if (!dir || r.dir !== dir || !KINDS.includes(r.kind)) return null;
-    const types = own(schema.typeDirs).join('|');
-    const keyOk = r.kind === 'campaign' ? schema.campaignIds.includes(r.seedKey)
-      : r.kind === 'daily' ? new RegExp('^d-\\d{4}-\\d{2}-\\d{2}-(' + types + ')$').test(r.seedKey)
-        : new RegExp('^a-(' + types + ')-[SML]-[A-Z0-9]{1,8}$').test(r.seedKey);
-    if (typeof r.seedKey !== 'string' || !keyOk) return null;
-    if (typeof r.title !== 'string' || r.title.length > 80) return null;
+    if (!own(schema.typeDirs).includes(r.type) || r.dir !== schema.typeDirs[r.type] || !KINDS.includes(r.kind)) return null;
+    // Every key format is bound to this run's own type, so a record cannot count under another job.
+    if (typeof r.seedKey !== 'string') return null;
+    const keyOk = r.kind === 'campaign' ? own(schema.campaigns).includes(r.seedKey) && schema.campaigns[r.seedKey] === r.type
+      : r.kind === 'daily' ? new RegExp('^d-\\d{4}-\\d{2}-\\d{2}-' + r.type + '$').test(r.seedKey)
+        : new RegExp('^a-' + r.type + '-[SML]-[A-Z0-9]{1,8}$').test(r.seedKey);
+    if (!keyOk) return null;
+    const title = schema.titleOf(r.kind, r.type, r.seedKey);
+    if (typeof title !== 'string') return null;
     if (typeof r.day !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(r.day)) return null;
     if (!num(r.machine, 0, MAX_VALUE) || !numOrNull(r.solo, 0, MAX_VALUE) || !num(r.centaur, 0, MAX_VALUE) || !num(r.best, 0, MAX_VALUE)) return null;
     if (!num(r.machinePct, 0, 100) || !numOrNull(r.soloPct, 0, 100) || !num(r.centaurPct, 0, 100) || !num(r.bestPct, 0, 100)) return null;
@@ -54,14 +59,15 @@
     if (!int(r.polishes, 0, 10000) || !int(r.advisoriesUsed, 0, 3)) return null;
     if (!int(r.ts, MIN_TS, now + 2 * 86400000)) return null;
     return {
-      seedKey: r.seedKey, kind: r.kind, type: r.type, title: r.title, day: r.day, dir: r.dir,
+      seedKey: r.seedKey, kind: r.kind, type: r.type, title, day: r.day, dir: r.dir,
       machine: r.machine, solo: r.solo, centaur: r.centaur, best: r.best, bestProven: r.bestProven,
       machinePct: r.machinePct, soloPct: r.soloPct, centaurPct: r.centaurPct, bestPct: r.bestPct,
       centaurWin: r.centaurWin, polishes: r.polishes, advisoriesUsed: r.advisoriesUsed, ts: r.ts,
     };
   }
 
-  // schema: { campaignIds: ['c1', ...], typeDirs: { haul: 'min', ... } }
+  // schema: { campaigns: { c1: 'haul', ... }, typeDirs: { haul: 'min', ... },
+  //          titleOf(kind, type, seedKey) -> the game's own display title for a validated run }
   function parseSave(text, schema, now) {
     const fail = (error) => ({ ok: false, error });
     const t = now == null ? Date.now() : now;
@@ -81,7 +87,7 @@
       if (!isObj(p.done)) return fail('That save’s campaign progress is damaged.');
       for (const id of own(p.done)) {
         const d = p.done[id];
-        if (!schema.campaignIds.includes(id)) return fail('That save names a mission this game does not have.');
+        if (!own(schema.campaigns).includes(id)) return fail('That save names a mission this game does not have.');
         if (!isObj(d) || !num(d.bestPct, 0, 100) || !OUTCOMES.includes(d.outcome)) return fail('That save’s campaign progress is damaged.');
         done[id] = { bestPct: d.bestPct, outcome: d.outcome };
       }

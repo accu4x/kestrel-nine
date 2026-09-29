@@ -1,7 +1,8 @@
 # Workers static-assets _headers for the site edition. build.mjs --site fills in the slug.
-# CSP: no inline script or style anywhere (the page shell is checked at build time).
+# CSP: no inline script or style anywhere (the page shell is checked at build time). The one
+# outside script is the Cloudflare Web Analytics beacon the zone injects, allowed as in the garden.
 /{SLUG}/*
-  Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'none'; frame-ancestors 'none'
+  Content-Security-Policy: default-src 'self'; script-src 'self' https://static.cloudflareinsights.com/beacon.min.js/; style-src 'self'; img-src 'self' data:; connect-src 'self'; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'none'; frame-ancestors 'none'
   X-Content-Type-Options: nosniff
   Referrer-Policy: strict-origin-when-cross-origin
   Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=(), usb=()

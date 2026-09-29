@@ -4,6 +4,8 @@
   const E = window.K9Engine, R = window.K9Render, C = window.K9Content;
   const COL = R.COL;
   const PUBLIC = !!window.K9_PUBLIC; // public edition: no shared data, no Rumor Net
+  const SITE = !!window.K9_SITE; // site edition: installable app, save files, challenge links
+  const SEED_RE = /^(HAUL|SURVEY|BLOCKADE|TREATY)-(S|M|L)-([A-Z0-9]{1,8})$/;
   const MODE_COL = { solo: COL.you, centaur: COL.cen, machine: COL.nav, best: COL.best };
 
   // ------------------------------------------------------------ utilities
@@ -38,6 +40,7 @@
   const reduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   const utcDay = () => new Date().toISOString().slice(0, 10);
   const pctTxt = (x) => (x == null ? '—' : (x >= 99.95 ? '100' : x.toFixed(1)) + '%');
+  const sgn = (x) => (x > 0 ? '+' + x : String(x));
 
   // ------------------------------------------------------------ persistent state (per viewer)
   const prog = Object.assign({ done: {}, rep: { aug: 0, con: 0, inq: 0, union: 0 }, runs: [] }, store.get('progress', {}));
@@ -85,12 +88,31 @@
   const G = {
     screen: 'title', t: 0, last: 0,
     m: null, hover: -1, dlg: null,
-    toast: null, warp: 0, layer: 'all', recordsTab: 'index',
+    toast: null, warp: 0, layer: 'all', recordsTab: 'index', saveMsg: '', pendingImport: null,
     cutters: [], sparks: [], replayT: 0,
     remote: { runs: null, rumors: null, canon: null, daily: {} },
   };
   const scr = new R.Screen($('#crt'));
   scr.fx = settings.crt; scr.reduced = reduced;
+
+  // ------------------------------------------------------------ install and offline (site edition)
+  const install = { prompt: null, ios: false };
+  if (SITE) {
+    const standalone = (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || navigator.standalone === true;
+    install.ios = !standalone && (/iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1));
+    window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); install.prompt = e; if (G.screen === 'title') renderConsole(); });
+    window.addEventListener('appinstalled', () => { install.prompt = null; if (G.screen === 'title') renderConsole(); });
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => { navigator.serviceWorker.register('sw.js').catch(() => { /* plays online without it */ }); });
+    }
+  }
+  function doInstall() {
+    const e = install.prompt;
+    install.prompt = null;
+    if (!e) return;
+    e.prompt();
+    e.userChoice.then(() => renderConsole(), () => renderConsole());
+  }
 
   function go(screen) {
     G.screen = screen; G.hover = -1; G.clearNext = true;
@@ -387,7 +409,6 @@
   function renderStatus() {
     const last = C.CAMPAIGN.filter((c) => prog.done[c.id]).map((c) => c.cycle).pop() || '77.4';
     const rep = prog.rep;
-    const sgn = (x) => (x > 0 ? '+' + x : String(x));
     $('#st-cycle').textContent = 'CYCLE ' + last;
     $('#st-rep').textContent = 'AUG ' + sgn(rep.aug) + ' · CON ' + sgn(rep.con) + ' · INQ ' + sgn(rep.inq) + ' · UNION ' + sgn(rep.union);
     $('#btn-sound').textContent = settings.sound ? 'SOUND ON' : 'SOUND OFF';
@@ -456,7 +477,11 @@
             btn('Records', () => go('records')),
             PUBLIC ? null : btn('Rumor Net', () => go('rumors')),
             btn('Chronicle', () => go('chronicle')),
-            btn('How to play', () => go('help')))));
+            btn('How to play', () => go('help')))),
+        SITE && install.prompt ? section('Install',
+          h('p', { class: 'muted small' }, 'Kestrel Nine installs as an app and plays offline.'),
+          h('div', { class: 'row' }, btn('Install Kestrel Nine', doInstall, 'primary'))) : null,
+        SITE && install.ios ? section('Install', h('p', { class: 'muted small' }, 'To install: Share, then Add to Home Screen.')) : null);
     },
 
     help() {
@@ -622,7 +647,7 @@
         section('Seed code',
           h('div', { class: 'form' }, h('label', { for: 'ar-code' }, 'Code'), code), err,
           h('div', { class: 'row' }, btn('Fly this seed', () => {
-            const mm = code.value.trim().toUpperCase().match(/^(HAUL|SURVEY|BLOCKADE|TREATY)-(S|M|L)-([A-Z0-9]{1,8})$/);
+            const mm = code.value.trim().toUpperCase().match(SEED_RE);
             if (!mm) { err.hidden = false; err.textContent = 'Seed codes look like HAUL-M-7F3A: job, size, then the code.'; return; }
             openRun(arcadeSpec(mm[1].toLowerCase(), mm[2], mm[3]));
           }))),
@@ -653,7 +678,8 @@
           h('tbody', {}, mine.map((r) => h('tr', {}, h('td', {}, r.title), h('td', { class: 'num' }, pctTxt(r.soloPct)), h('td', { class: 'num' }, pctTxt(r.centaurPct)), h('td', { class: 'num' }, pctTxt(r.machinePct))))))) :
           h('p', { class: 'muted' }, 'No runs yet. Fly a job and it will appear here.'));
       }
-      return h('div', { class: 'stack' }, h('header', { class: 'mhead' }, h('div', { class: 'eyebrow' }, 'Records'), h('h1', {}, 'The tally')), tabs, body, btn('◂ Back', () => go('title'), 'ghost'));
+      return h('div', { class: 'stack' }, h('header', { class: 'mhead' }, h('div', { class: 'eyebrow' }, 'Records'), h('h1', {}, 'The tally')),
+        SITE && G.pendingImport ? importPanel() : null, tabs, body, SITE ? savePanel() : null, btn('◂ Back', () => go('title'), 'ghost'));
     },
 
     rumors() {
@@ -698,8 +724,12 @@
     const wins = all.filter((r) => r.centaurWin).length;
     const avg = (k) => { const xs = all.map((r) => r[k]).filter((x) => x != null); return xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : null; };
     const idx = (wins / n) * 100;
-    const bar = (label, v, cls) => h('div', { class: 'bar-row' }, h('span', { class: 'bar-label' }, label),
-      h('span', { class: 'bar' }, h('span', { class: 'bar-fill ' + cls, style: 'width:' + Math.max(0, Math.min(100, v || 0)).toFixed(1) + '%' })), h('span', { class: 'num' }, pctTxt(v)));
+    const bar = (label, v, cls) => {
+      // Width through the CSSOM, not a style attribute, which the site edition's CSP blocks.
+      const fill = h('span', { class: 'bar-fill ' + cls });
+      fill.style.width = Math.max(0, Math.min(100, v || 0)).toFixed(1) + '%';
+      return h('div', { class: 'bar-row' }, h('span', { class: 'bar-label' }, label), h('span', { class: 'bar' }, fill), h('span', { class: 'num' }, pctTxt(v)));
+    };
     const byType = Object.keys(E.TYPES).map((t) => { const xs = all.filter((r) => r.type === t); return [t, xs.length, xs.filter((r) => r.centaurWin).length]; });
     return h('div', { class: 'stack' },
       section('Centaur Index · ' + scope,
@@ -722,7 +752,7 @@
       'Both  ' + blocks(m.pct.centaur) + ' ' + pctTxt(m.pct.centaur),
       'The machine is fast. The mind is wide.',
     ];
-    if (C.SHARE_URL) lines.push(C.SHARE_URL);
+    if (C.SHARE_URL) lines.push(SITE && m.kind === 'arcade' ? C.SHARE_URL + '?c=' + encodeURIComponent(m.code) : C.SHARE_URL);
     return lines.join('\n');
   }
   function sharePanel(m) {
@@ -753,6 +783,62 @@
       h('div', { class: 'row' }, masto, ext('Bluesky', 'https://bsky.app/intent/compose?text=' + enc), ext('X', 'https://x.com/intent/post?text=' + enc)),
       h('p', { class: 'muted small' }, 'Each button opens a ready-to-send post in a new tab. Nothing is posted until you send it.'));
   }
+  // ------------------------------------------------------------ save files (site edition, item 27)
+  const saveSchema = () => ({
+    campaignIds: C.CAMPAIGN.map((c) => c.id),
+    typeDirs: Object.fromEntries(Object.keys(E.TYPES).map((t) => [t, E.TYPES[t].dir])),
+  });
+  function savePanel() {
+    const file = h('input', { type: 'file', accept: 'application/json,.json', hidden: true, id: 'save-file' });
+    file.addEventListener('change', () => { const f = file.files && file.files[0]; if (f) readSave(f); });
+    return section('Save file',
+      h('p', { class: 'muted small' }, 'Your progress lives on this device. Export a save file to keep a backup or to move to another device. Importing restores missions, standings and records, never settings or callsign.'),
+      h('div', { class: 'row' }, btn('Export save', exportSave), btn('Import save', () => file.click(), 'ghost'), file),
+      G.saveMsg ? h('p', { class: 'muted small', role: 'status' }, G.saveMsg) : null);
+  }
+  function exportSave() {
+    const blob = new Blob([JSON.stringify(window.K9Save.exportSave(prog), null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = h('a', { href: url, download: 'kestrel-nine-save.json', hidden: true });
+    document.body.append(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    G.saveMsg = 'Save exported as kestrel-nine-save.json.';
+    renderConsole();
+  }
+  function readSave(f) {
+    G.pendingImport = null;
+    if (f.size > window.K9Save.MAX_BYTES) { G.saveMsg = 'That file is too large to be a Kestrel Nine save.'; renderConsole(); return; }
+    f.text().then((text) => {
+      const r = window.K9Save.parseSave(text, saveSchema());
+      if (r.ok) { G.pendingImport = r.progress; G.saveMsg = ''; } else G.saveMsg = r.error;
+      renderConsole();
+    }, () => { G.saveMsg = 'That file could not be read.'; renderConsole(); });
+  }
+  function importPanel() {
+    const next = G.pendingImport;
+    const missions = (d) => C.CAMPAIGN.filter((c) => d[c.id]).length + ' of ' + C.CAMPAIGN.length;
+    const standing = (r) => ['aug', 'con', 'inq', 'union'].map((k) => k.toUpperCase() + ' ' + sgn(r[k] || 0)).join(' · ');
+    const row = (label, now, after) => h('tr', {}, h('th', { scope: 'row' }, label), h('td', {}, now), h('td', {}, after));
+    return section('Import this save?',
+      h('div', { class: 'table-wrap' }, h('table', { class: 'board' },
+        h('thead', {}, h('tr', {}, h('th', {}, ''), h('th', {}, 'Now'), h('th', {}, 'After import'))),
+        h('tbody', {},
+          row('Missions', missions(prog.done), missions(next.done)),
+          row('Records', String(prog.runs.length), String(next.runs.length)),
+          row('Standing', standing(prog.rep), standing(next.rep))))),
+      h('p', { class: 'muted small' }, 'Importing replaces the missions, standings and records on this device. Settings and callsign stay as they are.'),
+      h('div', { class: 'row' },
+        btn('Replace my progress', applyImport, 'primary'),
+        btn('Cancel', () => { G.pendingImport = null; renderConsole(); }, 'ghost')));
+  }
+  function applyImport() {
+    const next = G.pendingImport;
+    if (!next) return;
+    prog.done = next.done; prog.rep = next.rep; prog.runs = next.runs;
+    G.pendingImport = null; G.saveMsg = 'Save imported.';
+    saveProg(); renderStatus(); renderConsole();
+  }
+
   function logPanel(m) {
     if (m.logged === 'yes') return section('Ship’s Log', h('p', {}, 'Filed to the Rumor Net.'), btn('Read the Rumor Net', () => go('rumors'), 'ghost'));
     const ta = h('textarea', { id: 'log-note', class: 'field', rows: '3', maxlength: '280', placeholder: 'What are you leaving for the next Augmented? A warning, a hint, a question.', 'aria-label': 'Ship’s Log note' });
@@ -1239,10 +1325,22 @@
   // live-reload friendliness: keep the viewer's place across republishes
   const hot = window.claude && window.claude.hot;
   if (hot && typeof hot.snapshot === 'function') { try { hot.snapshot(() => ({ screen: ['title', 'campaign', 'daily', 'arcade', 'records', 'rumors', 'chronicle', 'help'].includes(G.screen) ? G.screen : 'title' })); } catch (e) { /* optional */ } }
+  // ?c=HAUL-M-7F3A opens that arcade seed. Anything that fails the seed-code pattern is ignored.
+  function challengeFromUrl() {
+    if (!SITE) return null;
+    let c = null;
+    try { c = new URLSearchParams(location.search).get('c'); } catch (e) { return null; }
+    if (c == null) return null;
+    try { history.replaceState(null, '', location.pathname); } catch (e) { /* keep the query */ }
+    const mm = c.trim().toUpperCase().match(SEED_RE);
+    return mm ? arcadeSpec(mm[1].toLowerCase(), mm[2], mm[3]) : null;
+  }
   function start(data) {
     bindCanvas();
     renderStatus();
-    go((data && data.screen) || 'title');
+    const challenge = challengeFromUrl();
+    if (challenge) openRun(challenge);
+    else go((data && data.screen) || 'title');
     requestAnimationFrame(frame);
   }
   if (hot && typeof hot.ready === 'function') { try { hot.ready(start); } catch (e) { start({}); } }

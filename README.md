@@ -26,7 +26,8 @@ the **Chronicle**.
 
 - **In the browser:** the public edition on claude.ai,
   <https://claude.ai/artifact/VRsr1KHKCh5mcX1EBTYT8V>. Records stay on your device.
-- **As an installable app** that plays offline: coming at `play.latentmirror.com/kestrel-nine/`.
+- **As an installable app** that plays offline: <https://play.latentmirror.com/kestrel-nine/>.
+  Records stay on the device; export a save file from the Records screen to move them.
 
 ## Build and test
 
@@ -37,6 +38,9 @@ node artifact/test/engine.test.cjs     # every solver valid; prints NAV-7 vs cha
 node artifact/test/leak.test.cjs       # run before every push; fails closed
 node artifact/build.mjs                # home edition:   artifact/dist/kestrel-nine.html
 node artifact/build.mjs --public       # public edition: artifact/dist/kestrel-nine-public.html
+node artifact/test/save.test.cjs       # save-file validation
+node artifact/build.mjs --site         # installable app:  artifact/dist/site/
+python artifact/test/smoke_site.py     # headless check of the app (needs Python Playwright)
 ```
 
 Built files are not committed; every build is reproducible from `artifact/src/`.

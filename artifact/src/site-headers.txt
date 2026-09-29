@@ -1,0 +1,12 @@
+# Workers static-assets _headers for the site edition. build.mjs --site fills in the slug.
+# CSP: no inline script or style anywhere (the page shell is checked at build time).
+/{SLUG}/*
+  Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'none'; frame-ancestors 'none'
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=(), usb=()
+  Cross-Origin-Opener-Policy: same-origin
+
+# A new build must reach players: the browser always revalidates the worker script.
+/{SLUG}/sw.js
+  Cache-Control: no-cache

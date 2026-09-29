@@ -4,7 +4,7 @@ Decisions, tech debt and open questions for Kestrel Nine. Ideas live in `BACKLOG
 Keep entries dated. **Correct, don't overwrite:** when a decision is superseded, mark it with the
 date and a pointer to what replaced it. Numbers are stable IDs, not priority.
 
-_Last updated: 2026-09-28 (self-hosted PWA, no open channel, dialog trees: items 25–28)_
+_Last updated: 2026-09-28 (public repo live, item 30; PWA site edition built, item 25; item 22 closed)_
 
 ## The artifacts
 
@@ -184,6 +184,13 @@ Two editions, one source (`node artifact/build.mjs` and `node artifact/build.mjs
     handovers stay local; writing under CC BY-NC-SA 4.0, code under MIT; no built files; design
     notes stay public; repo `kestrel-nine`, fresh history, with a leak check before every push.
     Handed to Claude Code. The PWA site edition (item 25) deploys from this repo.
+    **Done 2026-09-28:** public at <https://github.com/accu4x/kestrel-nine>, first commit
+    `6ba7655` on `main`. The private section of `CLAUDE.md` is in `../private/kestrel-nine.md`
+    and its phrases in `../private/kestrel-nine-denylist.txt`. `artifact/test/leak.test.cjs`
+    scans every publishable file against that list and the employer list, plus secret patterns,
+    and fails closed when the Kestrel Nine list is missing; `--dir` also scans a build for
+    problem names. One wording change on the way: item 24's note said a "hidden seed" exists,
+    and now says "private design context". Later work goes through branches and pull requests.
 
 ## Open questions
 
@@ -213,6 +220,9 @@ Two editions, one source (`node artifact/build.mjs` and `node artifact/build.mjs
     "weighted vertex cover" and "weighted MAX-2-SAT" (the SURVEY, BLOCKADE and TREATY headers).
     No in-game text names them. Options: reword those three comments, or strip comments in
     `build.mjs`. Not changed in the 2026-09-28 description republish.
+    `[resolved 2026-09-28: the three comments are reworded without the names. The site edition
+    serves `engine.js` as-is, so its problem-name scan needed it. The claude.ai editions pick it up
+    at their next republish.]`
 24. **The in-game Chronicle lags the lore.** `[resolved 2026-09-28: synced. `content.js` got 14 Chronicle entries (deep past as `era` entries), a new `WORLD_BRIEF` and the Laplace prologue, which Dan approved in its "more liberating" revision; tests passed; both editions rebuilt and republished (public v4, home v3); the home `canon` collection was rewritten to 14 documents (c01–c14, new optional field `era`). Checked: no in-game text names a problem, and no private design context appears in either build.]` After item 23, `content.js`
     (`CANON`, `WORLD_BRIEF`) and the home edition's `canon` collection still carry the old timeline
     (Sato "the first of the Augmented", the Wardens *becoming* the Inquisition, the Purge "named

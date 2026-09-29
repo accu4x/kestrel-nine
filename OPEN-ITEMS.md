@@ -144,6 +144,10 @@ Two editions, one source (`node artifact/build.mjs` and `node artifact/build.mjs
       `[open 2026-09-28]` The zone's Cloudflare Web Analytics auto-injects its beacon script into
       these pages; the CSP blocks it (one console error, nothing breaks). Dan to choose: exclude the
       play host from auto-injection in the dashboard, or allow the beacon in the CSP as the garden does.
+      `[resolved 2026-09-29: Dan chose to allow it. The CSP's script-src adds
+      https://static.cloudflareinsights.com/beacon.min.js/, as the garden's does; the beacon reports
+      to the same origin (/cdn-cgi/rum), so connect-src stays 'self'. Checked live: no console errors.
+      Offline, the page's beacon request fails quietly; the game is unaffected.]`
 26. **2026-09-28: No chatbot, anywhere.** The game takes no free-text input to any model. Dan:
     "remove the open channel - everything needs to be routed through deterministic trees." It
     needs no login and no API key and runs on any device, offline. Every number comes from the

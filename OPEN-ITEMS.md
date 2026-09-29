@@ -131,6 +131,19 @@ Two editions, one source (`node artifact/build.mjs` and `node artifact/build.mjs
       needs a matching entry.
     - ~~Build Kestrel Nine first, then extract the generic parts into an open-source tool.~~
       `[dropped 2026-09-28, item 29]`
+    - **Built 2026-09-28:** live at <https://play.latentmirror.com/kestrel-nine/> (Worker
+      `kestrel-nine`, assets only, route `play.latentmirror.com/kestrel-nine*`, deployed with
+      `npx wrangler deploy` from this repo). Shipped: `build.mjs --site` (separate `app.js` and
+      `app.css` under a no-inline CSP, manifest, vector-drawn icons, a service worker with a
+      content-hashed cache), save export and strict import on the Records screen (item 27),
+      challenge links `?c=HAUL-M-7F3A` carried by arcade result cards, and an install button.
+      Checked live: the headers, `/kestrel-nine` redirecting to `/kestrel-nine/`, the service worker
+      in control, a challenge link, and an offline start.
+      *Differs from item 25 as first written:* no `window.claude` shim was needed, because the game
+      already keeps its records in `localStorage` and has no `db` or `user` in the public build.
+      `[open 2026-09-28]` The zone's Cloudflare Web Analytics auto-injects its beacon script into
+      these pages; the CSP blocks it (one console error, nothing breaks). Dan to choose: exclude the
+      play host from auto-injection in the dashboard, or allow the beacon in the CSP as the garden does.
 26. **2026-09-28: No chatbot, anywhere.** The game takes no free-text input to any model. Dan:
     "remove the open channel - everything needs to be routed through deterministic trees." It
     needs no login and no API key and runs on any device, offline. Every number comes from the

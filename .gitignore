@@ -1,0 +1,17 @@
+# Stay local, never committed (OPEN-ITEMS item 30, decision 2)
+lore/INTERVIEW-2026-09-28.md
+docs/galaxai-master-spec.md
+docs/lore-recovery-2026-09-28.md
+HANDOVER-*.md
+
+# Built files: every build is reproducible (decision 4)
+artifact/dist/
+
+# Tooling and OS
+node_modules/
+.wrangler/
+.dev.vars
+*.log
+.DS_Store
+Thumbs.db
+desktop.ini

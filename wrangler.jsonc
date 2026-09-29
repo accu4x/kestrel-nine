@@ -1,0 +1,20 @@
+// Kestrel Nine site edition: an assets-only Worker on play.latentmirror.com (OPEN-ITEMS item 25).
+// Each app on the play host deploys itself on its own path route; there is no shared host project.
+// Build first: node artifact/build.mjs --site   then: npx wrangler deploy
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "kestrel-nine",
+  "compatibility_date": "2026-09-28",
+  "workers_dev": false,
+  "preview_urls": false,
+  // A route, not a custom domain, so later apps can take their own paths on the same host.
+  // DNS: a proxied AAAA record `play` -> 100:: in the latentmirror.com zone (Dan, dashboard).
+  "routes": [{ "pattern": "play.latentmirror.com/kestrel-nine*", "zone_name": "latentmirror.com" }],
+  "assets": {
+    // Holds kestrel-nine/ (a route does not strip its path) and _headers.
+    "directory": "./artifact/dist/site",
+    // /kestrel-nine redirects to /kestrel-nine/, which serves kestrel-nine/index.html.
+    "html_handling": "auto-trailing-slash",
+    "not_found_handling": "none"
+  }
+}

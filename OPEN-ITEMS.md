@@ -4,7 +4,7 @@ Decisions, tech debt and open questions for Kestrel Nine. Ideas live in `BACKLOG
 Keep entries dated. **Correct, don't overwrite:** when a decision is superseded, mark it with the
 date and a pointer to what replaced it. Numbers are stable IDs, not priority.
 
-_Last updated: 2026-09-28 (self-hosted PWA, no open channel, dialog trees: items 25–28)_
+_Last updated: 2026-09-28 (public repo live, item 30; PWA site edition built, item 25; item 22 closed)_
 
 ## The artifacts
 
@@ -131,6 +131,23 @@ Two editions, one source (`node artifact/build.mjs` and `node artifact/build.mjs
       needs a matching entry.
     - ~~Build Kestrel Nine first, then extract the generic parts into an open-source tool.~~
       `[dropped 2026-09-28, item 29]`
+    - **Built 2026-09-28:** live at <https://play.latentmirror.com/kestrel-nine/> (Worker
+      `kestrel-nine`, assets only, route `play.latentmirror.com/kestrel-nine*`, deployed with
+      `npx wrangler deploy` from this repo). Shipped: `build.mjs --site` (separate `app.js` and
+      `app.css` under a no-inline CSP, manifest, vector-drawn icons, a service worker with a
+      content-hashed cache), save export and strict import on the Records screen (item 27),
+      challenge links `?c=HAUL-M-7F3A` carried by arcade result cards, and an install button.
+      Checked live: the headers, `/kestrel-nine` redirecting to `/kestrel-nine/`, the service worker
+      in control, a challenge link, and an offline start.
+      *Differs from item 25 as first written:* no `window.claude` shim was needed, because the game
+      already keeps its records in `localStorage` and has no `db` or `user` in the public build.
+      `[open 2026-09-28]` The zone's Cloudflare Web Analytics auto-injects its beacon script into
+      these pages; the CSP blocks it (one console error, nothing breaks). Dan to choose: exclude the
+      play host from auto-injection in the dashboard, or allow the beacon in the CSP as the garden does.
+      `[resolved 2026-09-29: Dan chose to allow it. The CSP's script-src adds
+      https://static.cloudflareinsights.com/beacon.min.js/, as the garden's does; the beacon reports
+      to the same origin (/cdn-cgi/rum), so connect-src stays 'self'. Checked live: no console errors.
+      Offline, the page's beacon request fails quietly; the game is unaffected.]`
 26. **2026-09-28: No chatbot, anywhere.** The game takes no free-text input to any model. Dan:
     "remove the open channel - everything needs to be routed through deterministic trees." It
     needs no login and no API key and runs on any device, offline. Every number comes from the
@@ -184,6 +201,13 @@ Two editions, one source (`node artifact/build.mjs` and `node artifact/build.mjs
     handovers stay local; writing under CC BY-NC-SA 4.0, code under MIT; no built files; design
     notes stay public; repo `kestrel-nine`, fresh history, with a leak check before every push.
     Handed to Claude Code. The PWA site edition (item 25) deploys from this repo.
+    **Done 2026-09-28:** public at <https://github.com/accu4x/kestrel-nine>, first commit
+    `6ba7655` on `main`. The private section of `CLAUDE.md` is in `../private/kestrel-nine.md`
+    and its phrases in `../private/kestrel-nine-denylist.txt`. `artifact/test/leak.test.cjs`
+    scans every publishable file against that list and the employer list, plus secret patterns,
+    and fails closed when the Kestrel Nine list is missing; `--dir` also scans a build for
+    problem names. One wording change on the way: item 24's note said a "hidden seed" exists,
+    and now says "private design context". Later work goes through branches and pull requests.
 
 ## Open questions
 
@@ -213,6 +237,9 @@ Two editions, one source (`node artifact/build.mjs` and `node artifact/build.mjs
     "weighted vertex cover" and "weighted MAX-2-SAT" (the SURVEY, BLOCKADE and TREATY headers).
     No in-game text names them. Options: reword those three comments, or strip comments in
     `build.mjs`. Not changed in the 2026-09-28 description republish.
+    `[resolved 2026-09-28: the three comments are reworded without the names. The site edition
+    serves `engine.js` as-is, so its problem-name scan needed it. The claude.ai editions pick it up
+    at their next republish.]`
 24. **The in-game Chronicle lags the lore.** `[resolved 2026-09-28: synced. `content.js` got 14 Chronicle entries (deep past as `era` entries), a new `WORLD_BRIEF` and the Laplace prologue, which Dan approved in its "more liberating" revision; tests passed; both editions rebuilt and republished (public v4, home v3); the home `canon` collection was rewritten to 14 documents (c01–c14, new optional field `era`). Checked: no in-game text names a problem, and no private design context appears in either build.]` After item 23, `content.js`
     (`CANON`, `WORLD_BRIEF`) and the home edition's `canon` collection still carry the old timeline
     (Sato "the first of the Augmented", the Wardens *becoming* the Inquisition, the Purge "named

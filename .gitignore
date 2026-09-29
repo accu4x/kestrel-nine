@@ -9,6 +9,7 @@ artifact/dist/
 
 # Tooling and OS
 node_modules/
+__pycache__/
 .wrangler/
 .dev.vars
 *.log

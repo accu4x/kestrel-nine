@@ -48,8 +48,14 @@ docs, commit messages or PRs. If a public draft seems to need it, ask Dan instea
 | `artifact/src/render.js` | Vector stroke font, wireframe primitives, WebGL CRT pass. |
 | `artifact/src/game.js` | Screens, input, records, Rumor Net. |
 | `artifact/src/style.css`, `template.html` | Console styling (Slate tokens) and page shell. |
-| `artifact/build.mjs` | Inlines everything into `artifact/dist/kestrel-nine.html`. |
+| `artifact/src/save.js` | Save-file export and strict import (site edition, item 27). |
+| `artifact/src/sw.js`, `site-headers.txt` | Service worker and `_headers` (CSP) for the site edition. |
+| `artifact/build.mjs` | Inlines everything into `artifact/dist/kestrel-nine.html`; `--site` writes the installable app to `artifact/dist/site/`. |
+| `artifact/icons.mjs` | App icons, vector-drawn, encoded with `node:zlib` only. |
+| `wrangler.jsonc` | Assets-only Worker on the route `play.latentmirror.com/kestrel-nine*`. |
 | `artifact/test/engine.test.cjs` | Solver checks and heuristic-gap stats. |
+| `artifact/test/save.test.cjs` | Save files round-trip; every validation rule rejects a bad file. |
+| `artifact/test/smoke_site.py` | Headless check of `dist/site/` under its real CSP, including the offline start (Python Playwright). |
 | `artifact/test/leak.test.cjs` | Private-phrase and secret scan of every publishable file (`--dir` for a build, plus problem names). |
 
 ## Build and test
@@ -59,7 +65,17 @@ node artifact/test/engine.test.cjs     # every solver valid; prints NAV-7 vs cha
 node artifact/test/leak.test.cjs       # before every push; fails closed (OPEN-ITEMS item 30)
 node artifact/build.mjs                # home edition: artifact/dist/kestrel-nine.html
 node artifact/build.mjs --public       # public edition: artifact/dist/kestrel-nine-public.html
+node artifact/test/save.test.cjs       # save-file rules
+node artifact/build.mjs --site         # site edition: artifact/dist/site/kestrel-nine/ + _headers
+node artifact/test/leak.test.cjs --dir artifact/dist/site
+python artifact/test/smoke_site.py     # headless: CSP, a mission to the debrief, saves, offline start
+npx wrangler deploy                    # site edition to play.latentmirror.com/kestrel-nine/
 ```
+
+The site edition is the public edition plus `window.K9_SITE`: separate `app.js` and `app.css` (its
+CSP allows no inline script or style), a manifest, icons, a service worker, save export and import
+on the Records screen, challenge links (`?c=HAUL-M-7F3A`) and an install button. Its result cards
+point at the play URL; the claude.ai editions keep theirs.
 
 Publish each file to its own artifact URL (see `OPEN-ITEMS.md`). The home edition declares `db`
 and `user` (keep the canon write rule); the public edition declares no capabilities, and must

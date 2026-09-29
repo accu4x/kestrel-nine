@@ -278,7 +278,7 @@
   };
 
   // =====================================================================
-  // SURVEY: place K rigs to cover the richest deposits (max coverage).
+  // SURVEY: place K rigs to cover the richest deposits.
   // =====================================================================
   const ORE = [
     { key: 'iron', label: 'IRON', t: 4 },
@@ -432,7 +432,7 @@
   };
 
   // =====================================================================
-  // BLOCKADE: jam every lane at minimum power (weighted vertex cover).
+  // BLOCKADE: jam every lane at minimum power.
   // =====================================================================
   function segCross(a, b, c, d) {
     const o = (p, q, r) => Math.sign((q.x - p.x) * (r.y - p.y) - (q.y - p.y) * (r.x - p.x));
@@ -589,7 +589,7 @@
   };
 
   // =====================================================================
-  // TREATY: choose terms to win the most weighted support (weighted MAX-2-SAT).
+  // TREATY: choose terms to win the most weighted support.
   // =====================================================================
   const TERM_POOL = [
     'Tollgate inspections', 'Tariff holiday', 'Salvage rights at Marrow', 'Escorted convoys',

@@ -155,7 +155,8 @@ Two editions, one source (`node artifact/build.mjs` and `node artifact/build.mjs
       foreground. The worker also precaches straight from the server now (`cache: 'reload'`), so
       a new build cannot fill its cache with old files from the browser's HTTP cache; the live
       host's headers already forced that check, and the smoke test's server did not. Installs
-      still on the earlier build pick this up on their second launch after it deploys.]`
+      still on the earlier build pick this up on their second launch after it deploys.
+      Deployed 2026-10-01 from 75e381c; the files the host serves match that build.]`
 26. **2026-09-28: No chatbot, anywhere.** The game takes no free-text input to any model. Dan:
     "remove the open channel - everything needs to be routed through deterministic trees." It
     needs no login and no API key and runs on any device, offline. Every number comes from the

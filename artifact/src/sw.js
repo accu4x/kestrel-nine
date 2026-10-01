@@ -5,8 +5,12 @@
 const CACHE = '/*CACHE*/';
 const FILES = /*FILES*/[];
 
+// cache: 'reload' fetches each file from the server. Without it a new build could precache the
+// old files out of the browser's HTTP cache and keep serving them under the new cache name.
 self.addEventListener('install', (e) => {
-  e.waitUntil(caches.open(CACHE).then((c) => c.addAll(FILES)).then(() => self.skipWaiting()));
+  e.waitUntil(caches.open(CACHE)
+    .then((c) => c.addAll(FILES.map((f) => new Request(f, { cache: 'reload' }))))
+    .then(() => self.skipWaiting()));
 });
 
 self.addEventListener('activate', (e) => {

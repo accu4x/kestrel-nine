@@ -148,6 +148,14 @@ Two editions, one source (`node artifact/build.mjs` and `node artifact/build.mjs
       https://static.cloudflareinsights.com/beacon.min.js/, as the garden's does; the beacon reports
       to the same origin (/cdn-cgi/rum), so connect-src stays 'self'. Checked live: no console errors.
       Offline, the page's beacon request fails quietly; the game is unaffected.]`
+      `[2026-10-01: a deploy used to show one launch late. The old worker answered from its
+      cache, and the new one took over without reloading the open page. Now a new build reloads
+      the title screen at once; on any other screen the run is left alone and the title screen
+      offers "Reload to update"; and the app looks for a new build whenever it returns to the
+      foreground. The worker also precaches straight from the server now (`cache: 'reload'`), so
+      a new build cannot fill its cache with old files from the browser's HTTP cache; the live
+      host's headers already forced that check, and the smoke test's server did not. Installs
+      still on the earlier build pick this up on their second launch after it deploys.]`
 26. **2026-09-28: No chatbot, anywhere.** The game takes no free-text input to any model. Dan:
     "remove the open channel - everything needs to be routed through deterministic trees." It
     needs no login and no API key and runs on any device, offline. Every number comes from the
@@ -275,7 +283,8 @@ Two editions, one source (`node artifact/build.mjs` and `node artifact/build.mjs
       after the pull request merges. `[2026-10-01: merged as 41fc64d. Both claude.ai editions
       republished from that build: home version 5 (`db` and `user` carried forward, canon write
       rule kept), public version 6 (no capabilities). The public edition was checked live: a
-      fresh visit opens on the prologue. The site deploy is still open.]`
+      fresh visit opens on the prologue. The site deploy is still open.]` `[2026-10-01: Dan
+      deployed the site edition; the `app.js` it serves matches the build from 41fc64d.]`
 36. **2026-10-01: Lore interview, round 5 (combat, modules, classes, runs).** Dan's answers,
     recorded as design decisions; they become canon when he approves the names draft and the
     lore files are edited (`lore/CANON.md`). Full record: design doc §7.

@@ -146,8 +146,8 @@ def main() -> int:
     with sync_playwright() as pw:
         browser = pw.chromium.launch()
 
-        def fresh_profile() -> tuple[BrowserContext, Page]:
-            c = browser.new_context(viewport={"width": 1280, "height": 800}, accept_downloads=True)
+        def fresh_profile(width: int = 1280, height: int = 800) -> tuple[BrowserContext, Page]:
+            c = browser.new_context(viewport={"width": width, "height": height}, accept_downloads=True)
             p = c.new_page()
             p.on("console", lambda m: errors.append(m.text) if m.type == "error" else None)
             p.on("pageerror", lambda e: errors.append(str(e)))
@@ -183,6 +183,8 @@ def main() -> int:
         fly_haul(page, "(() => { const d = K9Content.CAMPAIGN[0]; return K9Engine.TYPES.haul.generate(d.seed, d.params); })()")
         check(run_dialog_to(page, "Copy result"), "debrief dialog finishes and shows the result card")
         check(page.locator("#console .sharecard").inner_text().rstrip().endswith("https://play.latentmirror.com/kestrel-nine/"), "result card carries the play URL")
+        icons = page.locator("#console a.btn.icon")
+        check([icons.nth(i).get_attribute("aria-label") for i in range(icons.count())] == ["Share on Mastodon", "Share on Bluesky", "Share on X"], "the share icons carry spoken names")
         check(page.locator("#console button", has_text="Start at the beginning").count() == 0, "no way back to the prologue from a debrief once it has played")
         if SHOTS:
             page.screenshot(path=str(SHOTS / "site-debrief.png"))
@@ -274,6 +276,30 @@ def main() -> int:
         click_text(guest, "Start at the beginning")
         check(heading(guest) == "Prologue", "Start at the beginning opens the prologue")
         ctx3.close()
+
+        # Tablet layout. Upright (a 4:3 iPad under its status bar) the whole title screen fits, so
+        # no row of buttons falls off the bottom. Sideways, a long console stays on the screen.
+        fits = """() => {
+          const buttons = [...document.querySelectorAll('#console button')];
+          const lowest = Math.max(...buttons.map((b) => b.getBoundingClientRect().bottom));
+          return { lowest, consoleBottom: document.querySelector('.console').getBoundingClientRect().bottom,
+            page: document.scrollingElement.scrollHeight, screen: innerHeight };
+        }"""
+        ctx5, upright = fresh_profile(810, 1060)
+        upright.goto(base)
+        upright.wait_for_selector("#console h1")
+        upright.click("#btn-home")
+        m = upright.evaluate(fits)
+        check(m["lowest"] <= m["screen"] and m["page"] <= m["screen"], "upright tablet: the title screen fits without scrolling")
+        ctx5.close()
+        ctx6, sideways = fresh_profile(1024, 748)
+        sideways.goto(base)
+        sideways.wait_for_selector("#console h1")
+        sideways.click("#btn-home")
+        click_text(sideways, "Chronicle")
+        m = sideways.evaluate(fits)
+        check(m["consoleBottom"] <= m["screen"] and m["page"] <= m["screen"], "sideways tablet: a long console stays on the screen")
+        ctx6.close()
 
         # A newer deploy reaches a page that is already open: the app looks for one when it comes
         # back to the foreground. On the title screen it reloads into the new build at once.

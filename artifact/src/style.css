@@ -39,9 +39,13 @@
 }
 @media (prefers-reduced-motion: reduce) { :root { --hh-dur-fast: 1ms; --hh-dur: 1ms; } }
 
-html, body { height: 100%; }
-body { background: var(--hh-ground); color: var(--hh-text); font-family: var(--hh-font-body); font-size: var(--hh-size-body); line-height: 1.55; }
-.app { max-width: 1500px; margin: 0 auto; padding-inline: 16px; padding-block: 12px 24px; display: flex; flex-direction: column; gap: var(--hh-space-3); }
+/* The page grows with its content and scrolls as a whole: a fixed height here can leave the last
+   row out of reach in an installed app. The installed app also draws under the status bar, the
+   home indicator and the rounded corners (viewport-fit=cover), so the padding keeps clear of them. */
+html { min-height: 100%; }
+body { margin: 0; min-height: 100vh; min-height: 100dvh; background: var(--hh-ground); color: var(--hh-text); font-family: var(--hh-font-body); font-size: var(--hh-size-body); line-height: 1.55; }
+.app { max-width: 1500px; margin: 0 auto; display: flex; flex-direction: column; gap: var(--hh-space-3);
+  padding: max(12px, env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px)) max(24px, calc(env(safe-area-inset-bottom, 0px) + 16px)) max(16px, env(safe-area-inset-left, 0px)); }
 
 /* status bar */
 .statusbar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--hh-space-2) var(--hh-space-4); font-family: var(--hh-font-mono); font-size: var(--hh-size-micro); letter-spacing: var(--hh-track-label); text-transform: uppercase; color: var(--hh-text-muted); border-bottom: 1px solid var(--hh-hairline); padding-block: 4px 10px; }
@@ -56,12 +60,18 @@ body { background: var(--hh-ground); color: var(--hh-text); font-family: var(--h
 .tube { position: sticky; top: env(safe-area-inset-top, 0px); background: var(--k9-bezel); border-radius: 18px; padding: 14px; box-shadow: var(--hh-edge), inset 0 2px 30px rgba(0,0,0,.6); }
 .tube::after { content: "KESTREL INSTRUMENTS \00b7 AUGMENTED INTERFACE v3.7"; display: block; margin-top: 10px; font-family: var(--hh-font-mono); font-size: 10px; letter-spacing: .2em; color: #4c5270; text-align: right; }
 .screen { width: 100%; aspect-ratio: 16 / 10; display: block; border-radius: 12px; background: var(--k9-tube); touch-action: manipulation; }
-.console { background: var(--hh-sunken); border-radius: var(--hh-radius-panel); box-shadow: var(--hh-edge); padding: var(--hh-space-4); max-height: calc(100vh - 90px); overflow-y: auto; overscroll-behavior: contain; min-width: 0; }
+.console { background: var(--hh-sunken); border-radius: var(--hh-radius-panel); box-shadow: var(--hh-edge); padding: var(--hh-space-4); box-sizing: border-box; max-height: calc(100vh - 90px); max-height: calc(100dvh - 90px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)); overflow-y: auto; overscroll-behavior: contain; min-width: 0; }
 @media (max-width: 960px) {
   .deck { grid-template-columns: minmax(0, 1fr); }
   .tube { position: relative; padding: 8px; border-radius: 14px; }
   .tube::after { display: none; }
   .console { max-height: none; overflow: visible; }
+}
+/* Upright tablets: a full-width display pushes the last console row off the screen. Cap its
+   height at 40% of the screen (16:10, so 64% as a width) and centre it. Phones are narrower
+   than the cap, so they are unchanged. */
+@media (max-width: 960px) and (orientation: portrait) {
+  .tube { box-sizing: border-box; width: 100%; max-width: calc(64vh + 16px); max-width: calc(64dvh + 16px); margin-inline: auto; }
 }
 
 /* console typography */
@@ -210,3 +220,4 @@ td.num, th.num { text-align: right; font-family: var(--hh-font-mono); font-varia
 .sharecard:focus-visible { outline: none; box-shadow: var(--hh-glow); }
 .share-row { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 10px; align-items: center; }
 a.btn { display: inline-flex; align-items: center; text-decoration: none; }
+.btn.icon { box-sizing: border-box; justify-content: center; min-width: 44px; min-height: 44px; padding: 6px 10px; font-family: var(--hh-font-body); font-size: 20px; line-height: 1; letter-spacing: 0; text-transform: none; }

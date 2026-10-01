@@ -58,6 +58,8 @@ Two editions, one source (`node artifact/build.mjs` and `node artifact/build.mjs
 19. **2026-09-28: Result cards.** Spoiler-free text card (scores only; arcade cards add the seed
     code) with Copy plus Mastodon, Bluesky and X buttons that open a ready-to-send post. Dan:
     "we don't have to be on X but we can allow others to share." Nothing posts automatically.
+    `[amended 2026-10-01: the three buttons show icons instead of names, at Dan's request: 🐘
+    Mastodon, 🦋 Bluesky and 𝕏 X. Each keeps its name as a spoken label and tooltip.]`
 20. **2026-09-28: Public edition description.** Drafted by Claude from Dan's interview answers
     and approved by Dan; set as the claude.ai description of the public edition only (version 3,
     same build, byte-identical to `node artifact/build.mjs --public`). Checked claim by claim
@@ -359,6 +361,11 @@ Two editions, one source (`node artifact/build.mjs` and `node artifact/build.mjs
     monetization driver" stands until Dan decides.]`
 13. **Mobile.** `[open 2026-09-28]` The game runs on a phone, but vector labels are small at
     400 px. Desktop is the target for now.
+    `[2026-10-01: Dan found the bottom buttons cut off in the installed app on an upright iPad.
+    Fixed in the layout: on an upright tablet the display is capped at 40% of the screen height,
+    so the whole title screen fits; the page keeps clear of the status bar and home indicator;
+    and sideways, the console no longer runs 16 px past the bottom of the screen. Measured in a
+    desktop browser at iPad sizes, not on an iPad: Dan to confirm on the device.]`
 
 ## Tech debt
 

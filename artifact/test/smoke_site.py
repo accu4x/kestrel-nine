@@ -4,13 +4,15 @@ Build first (node artifact/build.mjs --site). Needs Python Playwright with Chrom
 Serves artifact/dist/site locally with the _headers rules applied (so the real CSP is enforced),
 then checks: no console errors or CSP violations; a fresh profile opens on the prologue, which
 leads into Mission 1 and never plays twice; a campaign mission plays to the debrief; save export
-and import; the Chronicle's prologue replay; challenge links; and, with the server stopped and the
-network off, a reload still starts the game from the service worker.
+and import; the Chronicle's prologue replay; challenge links; a newer deploy reaching an open
+page; and, with the server stopped and the network off, a reload still starts the game from the
+service worker.
 """
 from __future__ import annotations
 
 import fnmatch
 import json
+import re
 import sys
 import threading
 from functools import partial
@@ -38,6 +40,19 @@ def load_headers() -> list[tuple[str, list[tuple[str, str]]]]:
 
 class Handler(SimpleHTTPRequestHandler):
     rules = load_headers()
+    # Files swapped in to stand for a newer deploy: path -> (content type, body). See deploy().
+    overrides: dict[str, tuple[str, bytes]] = {}
+
+    def do_GET(self) -> None:
+        hit = self.overrides.get(self.path.split("?")[0])
+        if not hit:
+            super().do_GET()
+            return
+        self.send_response(200)
+        self.send_header("Content-Type", hit[0])
+        self.send_header("Content-Length", str(len(hit[1])))
+        self.end_headers()
+        self.wfile.write(hit[1])
 
     def end_headers(self) -> None:
         path = self.path.split("?")[0]
@@ -49,6 +64,20 @@ class Handler(SimpleHTTPRequestHandler):
 
     def log_message(self, *args: object) -> None:
         pass
+
+
+def deploy(build: int) -> None:
+    """Stand in for a newer deploy: a worker with a new cache name, and an app.js that says
+    which build it is (window.K9_SMOKE_BUILD)."""
+    site = ROOT / "kestrel-nine"
+    worker, swapped = re.subn(r'const CACHE = "[^"]*"', f'const CACHE = "k9-smoke-build-{build}"', (site / "sw.js").read_text(encoding="utf-8"))
+    if swapped != 1:
+        raise ValueError("sw.js has no cache name to replace")
+    app = (site / "app.js").read_text(encoding="utf-8") + f"\nwindow.K9_SMOKE_BUILD = {build};\n"
+    Handler.overrides = {
+        "/kestrel-nine/sw.js": ("text/javascript", worker.encode()),
+        "/kestrel-nine/app.js": ("text/javascript", app.encode()),
+    }
 
 
 def check(cond: bool, msg: str) -> None:
@@ -237,6 +266,33 @@ def main() -> int:
         click_text(guest, "Start at the beginning")
         check(heading(guest) == "Prologue", "Start at the beginning opens the prologue")
         ctx3.close()
+
+        # A newer deploy reaches a page that is already open: the app looks for one when it comes
+        # back to the foreground. On the title screen it reloads into the new build at once.
+        foreground = "document.dispatchEvent(new Event('visibilitychange'))"
+        title_button = page.locator("#console button", has_text="Campaign: Cold Start")
+        reload_button = page.locator("#console button", has_text="Reload to update")
+        deploy(2)
+        with page.expect_navigation(timeout=20000):
+            page.evaluate(foreground)
+        page.wait_for_selector("#console button")
+        check(page.evaluate("window.K9_SMOKE_BUILD") == 2 and title_button.count() == 1 and reload_button.count() == 0, "a new build reloads the title screen into itself")
+
+        # On any other screen it leaves the player alone and offers the reload on the title screen.
+        deploy(3)
+        click_text(page, "Records")
+        page.evaluate("window.k9Mark = 1; navigator.serviceWorker.addEventListener('controllerchange', () => { window.k9Changed = true; })")
+        page.evaluate(foreground)
+        # A function, not an expression: the page's CSP forbids the eval an expression would need.
+        page.wait_for_function("() => window.k9Changed === true", timeout=20000)
+        check(page.evaluate("window.k9Mark") == 1 and heading(page) == "The tally" and page.evaluate("window.K9_SMOKE_BUILD") == 2, "a new build does not reload a screen in use")
+        page.click("#btn-home")
+        check(reload_button.count() == 1, "the title screen then offers the reload")
+        with page.expect_navigation(timeout=20000):
+            reload_button.click()
+        page.wait_for_selector("#console button")
+        check(page.evaluate("window.K9_SMOKE_BUILD") == 3 and reload_button.count() == 0, "reloading opens the new build")
+        check("c1" in page.evaluate("JSON.parse(localStorage.getItem('k9.progress')).done"), "progress survives the update")
 
         # Offline start: server gone, network off.
         server.shutdown()

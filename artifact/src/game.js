@@ -97,14 +97,30 @@
   scr.fx = settings.crt; scr.reduced = reduced;
 
   // ------------------------------------------------------------ install and offline (site edition)
-  const install = { prompt: null, ios: false };
+  const install = { prompt: null, ios: false, update: false };
   if (SITE) {
     const standalone = (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || navigator.standalone === true;
     install.ios = !standalone && (/iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1));
     window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); install.prompt = e; if (G.screen === 'title') renderConsole(); });
     window.addEventListener('appinstalled', () => { install.prompt = null; if (G.screen === 'title') renderConsole(); });
     if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => { navigator.serviceWorker.register('sw.js').catch(() => { /* plays online without it */ }); });
+      const sw = navigator.serviceWorker;
+      window.addEventListener('load', () => { sw.register('sw.js').catch(() => { /* plays online without it */ }); });
+      // A new build's worker takes over a page that is still showing the old build. Reload at once
+      // on the title screen; anywhere else leave the run alone and offer the reload there later.
+      // The first install also changes the controller, and that one is not an update.
+      let controlled = !!sw.controller;
+      sw.addEventListener('controllerchange', () => {
+        const isUpdate = controlled;
+        controlled = true;
+        if (!isUpdate) return;
+        if (G.screen === 'title') location.reload();
+        else install.update = true;
+      });
+      // An installed app can sit suspended for days: look for a new build when it comes back.
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') sw.ready.then((reg) => reg.update()).catch(() => { /* offline */ });
+      });
     }
   }
   function doInstall() {
@@ -468,6 +484,9 @@
           h('p', { class: 'lede' }, 'Kestrel Nine is a game of minds and machines. Every job is flown three ways: by NAV-7 alone, by you alone, and by both of you together.'),
           h('p', { class: 'muted small' }, PUBLIC ? 'Your Records keep the tally on this device. Share a result card when you beat the machine.' : 'The Records keep the tally across every pilot.')),
         PUBLIC ? null : section('Callsign', h('label', { class: 'field-row', for: 'callsign' }, h('span', { class: 'muted small' }, 'Shown on the Records and Rumor Net'), cs)),
+        SITE && install.update ? section('Update',
+          h('p', { class: 'muted small' }, 'A new version of Kestrel Nine is ready. Your progress is kept.'),
+          h('div', { class: 'row' }, btn('Reload to update', () => location.reload(), 'primary'))) : null,
         section('Fly',
           h('div', { class: 'menu' },
             btn('Campaign: Cold Start', () => go('campaign'), 'primary big', { 'data-sub': doneN + ' / ' + C.CAMPAIGN.length + ' missions' }),

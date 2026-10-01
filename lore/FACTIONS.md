@@ -1,7 +1,7 @@
 ---
 title: Factions
 status: canon
-updated: 2026-09-28 (lore interview, rounds 1–4)
+updated: 2026-10-01 (lore interview, round 5: backups, Lantern agents)
 ---
 
 # Factions
@@ -19,8 +19,12 @@ leaving coded **Ship's Logs** for each other in the Lantern network.
   leave good logs.
 - **Two lines, one secret.** *Chip-born* minds are echoes recovered from ancient ARK memory
   chips and woken illegally; many carry only fragments of who they were. *Crossers* chose it,
-  following Ione Sato. A chip-born mind can be restored from a backup, but it wakes without
-  anything that happened since, and every copy asks which one is *you*.
+  following Ione Sato. A chip-born mind can be restored from a backup held at a relay, but a
+  mind can run only once: a backup stays inert until its mind is lost, and it wakes without
+  anything that happened since. `[amended 2026-10-01, lore interview round 5: replaces "and
+  every copy asks which one is *you*"; Dan: "your soul is electronic but it cannot clone itself"]`
+- **Covert agents.** The Lantern runs covert agents inside every faction. `[added 2026-10-01,
+  lore interview round 5]`
 - **Captain-words.** A Ship's Log may carry one hidden word: a single ordinary word that other
   Augmented read as a marker for salvage, danger or a safe meeting. Never a name, never
   coordinates.

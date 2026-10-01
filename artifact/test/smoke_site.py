@@ -230,6 +230,23 @@ def main() -> int:
         page.wait_for_selector("#console button")
         check(page.locator("#console button", has_text="Campaign: Cold Start").count() == 1, "bad challenge code ignored")
 
+        # The fifth job. Its challenge code opens it, and it is flown entirely from the console:
+        # aim one weapon, raise one arc, file the plan, and the debrief replays the fight.
+        page.goto(base + "?c=ENGA-M-7F3A")
+        page.wait_for_selector("#console h1")
+        check(heading(page) == "Arcade engagement M", "an engagement challenge link opens the fight")
+        check(run_dialog_to(page, "Begin solo run") and any(s.startswith("CONTACT") for s in page.locator("#console .dialog .said").all_inner_texts()), "the briefing names the contact")
+        click_text(page, "Begin solo run")
+        click_text(page, "Skip to centaur run")
+        click_text(page, "Start fresh")
+        page.select_option("#eg-0-w1", "0")
+        page.click("#eg-0-a0")
+        check(page.evaluate("document.activeElement.id") == "eg-0-a0", "the plan editor keeps keyboard focus on the control just used")
+        click_text(page, "File centaur plan")
+        page.wait_for_selector("#console table.results")
+        check(run_dialog_to(page, "Copy result") and "seed ENGA-M-7F3A" in page.locator("#console .sharecard").inner_text(), "the engagement debrief shows its result card")
+        page.click("#btn-home")
+
         # A fresh profile that skips the prologue lands in mission 1 and never sees it again.
         ctx2, skipper = fresh_profile()
         skipper.goto(base)

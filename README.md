@@ -10,12 +10,15 @@ future that has outlawed thinking machines. Every job is flown three ways:
    polish your plan and give three advisories, but by law it cannot originate a plan.
 3. **Debrief:** NAV-7's own one-pass run is revealed beside yours, with the charted best.
 
-Four kinds of job, each a genuinely hard planning problem underneath:
+Five kinds of job, each a genuinely hard planning problem underneath:
 
 - **Haul:** deliver to every port and come home.
 - **Survey:** place drill rigs within a credit budget to cover the richest ore.
 - **Blockade:** jam every lane with the least power so Inquisition cutters lose the trail.
 - **Treaty:** choose treaty terms that win the most weighted support at a divided table.
+- **Engagement:** hold off a hostile ship until your drive spools, splitting reactor power
+  between weapons and shields. Every enemy shot is shown before you commit. You disable; you
+  never destroy.
 
 Modes: a six-mission campaign (*Cold Start*), a Daily Seed shared by every pilot, and an Arcade
 with shareable seed codes. The Records keep a **Centaur Index**: how often pilot plus engine

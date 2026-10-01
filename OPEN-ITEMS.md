@@ -227,6 +227,31 @@ Two editions, one source (`node artifact/build.mjs` and `node artifact/build.mjs
     BACKLOG for "resist the Purge" (item 20). Design: `docs/design-engagement-and-modules.md` §2.
     Dan: "we need to come up with a fun way to include combat. I like how everything has been NP
     based. How can we pair that with combat?"
+    - **Built 2026-10-01 (phase A), one pull request, branch `phase-a-engagement`.** Engagement
+      is the fifth job type: Arcade (S/M/L), the Daily Seed, challenge codes `ENGA-M-xxxx`, a plan
+      editor in the console, a replay at the debrief, result cards, Records and save files. The
+      seed picks the enemy doctrine (Dan, 2026-10-01). The campaign is unchanged.
+    - **Where the build departs from design doc §2**, each for a stated reason:
+      - *Score is hull left at the jump, higher is better*, not hull damage, lower is better.
+        A fight can be flown without a scratch, and "share of the charted best" divides by the
+        best score, so a best of zero damage would break every percentage on the Records. The
+        ordering of plans is the same. Hull starts at the worst case plus 10. Unspent power no
+        longer breaks ties.
+      - *Both sides fire at once.* A mount must be dark before its round to cancel that shot,
+        as §2 words it, so the first round's fire can only be shielded.
+      - *A doctrine's special subsystem is extra*, not in place of a mount. With it replacing a
+        mount, two-gun fights were won on shields alone.
+      - *NAV-7 values a grapple in every round*, not only the last. Counting it only in the last
+        round, it was seized in nearly every Inquisition fight.
+      - *Numbers:* a raised arc blocks 2; PULSE 1 power for 1, LANCE 2 for 2, BATTERY 3 for 3;
+        S fights carry BATTERY and LANCE on a reactor of 4, with every subsystem one point thinner.
+    - **Tuning, from `engine.test.cjs` and a 100-fight sample per doctrine:** NAV-7 alone matches
+      the charted best in about 27% of M fights when the seed picks the enemy, just under §2's
+      target of 30 to 50%. By doctrine at M: Armada 33%, Market 27%, Guild 26%, Inquisition 5%.
+      The Inquisition is the outlier: NAV-7 spends early power on the grapple that a pilot would
+      spend on shields. The exact solver's slowest L fight took under half a second in Node.
+      `[open]` Dan to say whether the Inquisition should be eased, and to review the new game
+      text (listed in the pull request) like canon.
 32. **2026-09-30: Ship modules are the build-crafting pieces, on every job type.** Dan: the
     "jokers" should be ship modules. They change rules, not just numbers. Each declares a solver
     cost (instance transform, scoring change, or solver change), and NAV-7 and the charted best

@@ -37,6 +37,10 @@ light on story and endlessly replayable. No pay-to-win and no loot boxes.
 
 ## 2. Engagement (job type 5)
 
+`[built 2026-10-01 as phase A. The build departs from this section in five places, each listed
+with its reason in OPEN-ITEMS item 31: the score, the firing order, the special subsystems,
+NAV-7's view of the grapple, and the numbers.]`
+
 ### Fiction
 
 A hostile ship intercepts you. Your drive needs a few rounds to spool. Survive until you can

@@ -304,6 +304,32 @@
       solo: 'Read the table. Find the compromise.',
       centaur: 'Set the terms you believe in, then POLISH to let the engine try single changes.',
     },
+    engagement: {
+      label: 'ENGAGEMENT', code: 'ENGA', verb: 'Battle plan',
+      how: 'Plan every round before the fight. Aim each weapon at an enemy subsystem or hold it, and raise shield arcs; weapons and shields share the reactor. A subsystem goes dark when its plating is spent, and a mount must be dark before its round to cancel that shot. You disable. You never destroy.',
+      solo: 'Read their firing schedule. Decide what to darken and what to block.',
+      centaur: 'File a plan within the reactor, then POLISH to let the engine try single changes.',
+    },
+  };
+
+  // Engagement: the lines around a fight. {x}, {r} and {s} are filled in by the game.
+  const ENGAGEMENT = {
+    contact: 'CONTACT · {x} · DRIVE SPOOLS IN {r} ROUNDS',
+    rules: {
+      inquisition: 'This engine notes a grapple on the cutter. If it is still running at the jump, this ship is seized.',
+      guild: 'This engine notes Guild engines. They keep pace: this fight runs a round longer.',
+      market: 'This engine notes a drain latched to the hull. While it runs, the reactor gives one less each round.',
+    },
+    parts: {
+      sensor: 'up at the jump: tracked, \u2212{x} hull',
+      engine: 'dark before the last round: you jump a round early',
+      grapple: 'running at the jump: seized, \u2212{x} hull',
+      drain: 'while it runs: reactor \u22121 each round',
+    },
+    legend: 'Dots are plating. A raised arc blocks {s} of the fire on that side, each round.',
+    early: 'Their engines are dark. You jump before this round.',
+    tracked: 'Sensors still up at the jump: tracked, \u2212{x} hull.',
+    seized: 'Grapple still running at the jump: seized, \u2212{x} hull.',
   };
 
   // The public edition's link, used on shared result cards. Set after the public artifact is published.
@@ -327,7 +353,7 @@
     { cycle: 77.4, title: "A pilot docks at Bay 7", body: "A new Augmented pilot, a chip-born mind woken by Professor Laplace, docks at Relay Station with a sealed crate and a tag that reads ASK FOR WINTER. What happens next is being written by the pilots of the reach." },
   ];
 
-  const api = { PEOPLE, NAV, PROLOGUE, CAMPAIGN, TYPE_INFO, TREATY_C5, SHARE_URL, CANON };
+  const api = { PEOPLE, NAV, PROLOGUE, CAMPAIGN, TYPE_INFO, ENGAGEMENT, TREATY_C5, SHARE_URL, CANON };
   root.K9Content = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })(typeof window !== 'undefined' ? window : globalThis);

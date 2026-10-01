@@ -306,7 +306,9 @@ Two editions, one source (`node artifact/build.mjs` and `node artifact/build.mjs
     - **Same mechanics, one signature:** every patron sells the same 13 module mechanics under its
       own names, plus one signature perk. Dan: "same 13 mechanics plus one signature is perfect".
     - **Glass & light** moves to the Lantern: its two contraband engine mods (Second Lantern,
-      Cracked Glass) are the same in every season.
+      Cracked Glass) are the same in every season. `[clarified 2026-10-01: so of the 13
+      mechanics, 11 are certified and take patron names; these two keep one shared name each and
+      get no patron variants (design doc §9)]`
     - **Hulls, not refits:** a mind inhabits one hull at a time and transfers into a hull class
       each season; the *Second Wind* is the first. Supersedes the refit decision in item 36.
     - **Backups:** a mind cannot clone itself. An inert backup at the last relay wakes if the hull

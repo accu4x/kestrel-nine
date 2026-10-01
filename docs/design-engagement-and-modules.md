@@ -231,7 +231,9 @@ either way, working inside the patron's ranks.
 | **Consortium** | Financial instruments | *Credit line:* Ring Market prices 20% lower; Black Market buys cost double standing. |
 
 Every patron sells **the same 13 module mechanics** under its own names (Dan, 2026-10-01), plus
-its one signature. The patron also sets the shop's look and the season's story beats. The
+its one signature. `[clarified 2026-10-01: of the 13, the 11 certified mechanics take patron
+names (§9); the two engine mods are Lantern contraband with one shared name each, Second Lantern
+and Cracked Glass, and get no patron variants]` The patron also sets the shop's look and the season's story beats. The
 campaign is untouched: it stays Laplace and Winter. The Outer Relay Commune is NPC-only and runs
 the relays.
 

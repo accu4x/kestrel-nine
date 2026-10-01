@@ -202,6 +202,29 @@ def main() -> int:
         check(skipper.locator("#console button", has_text="Campaign: Cold Start").count() == 1, "a reload after skipping opens the title screen")
         ctx2.close()
 
+        # HOME during the first-launch prologue counts as a skip. This profile has seen the prologue
+        # by the flag alone (no mission done), so it also shows an import never un-sees it.
+        ctx4, homer = fresh_profile()
+        homer.goto(base)
+        homer.wait_for_selector("#console h1")
+        homer.click("#btn-home")
+        check(homer.locator("#console button", has_text="Campaign: Cold Start").count() == 1, "HOME during the prologue opens the title screen")
+        homer.reload()
+        homer.wait_for_selector("#console button")
+        check(homer.locator("#console button", has_text="Campaign: Cold Start").count() == 1, "a reload after HOME does not reopen the prologue")
+        click_text(homer, "Records")
+        for label, progress in (("prologue: false", {"prologue": False, "rep": {"union": 1}}), ("no prologue key", {"rep": {"union": 2}})):
+            blank = {"app": "kestrel-nine", "v": 1, "progress": progress}
+            homer.set_input_files("#save-file", files=[{"name": "blank.json", "mimeType": "application/json", "buffer": json.dumps(blank).encode()}])
+            homer.wait_for_selector("text=Import this save?")
+            click_text(homer, "Replace my progress")
+            stored = homer.evaluate("JSON.parse(localStorage.getItem('k9.progress'))")
+            check(stored["rep"]["union"] == progress["rep"]["union"] and stored.get("prologue") is True, f"importing a save with {label} keeps the prologue seen")
+        homer.reload()
+        homer.wait_for_selector("#console button")
+        check(homer.locator("#console button", has_text="Campaign: Cold Start").count() == 1, "a reload after those imports opens the title screen")
+        ctx4.close()
+
         # A fresh profile on a challenge link plays the seed; its debrief offers the prologue.
         ctx3, guest = fresh_profile()
         guest.goto(base + "?c=HAUL-M-7F3A")

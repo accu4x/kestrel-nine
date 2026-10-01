@@ -152,8 +152,10 @@ Two editions, one source (`node artifact/build.mjs` and `node artifact/build.mjs
       cache, and the new one took over without reloading the open page. Now a new build reloads
       the title screen at once; on any other screen the run is left alone and the title screen
       offers "Reload to update"; and the app looks for a new build whenever it returns to the
-      foreground. Installs still on the earlier build pick this up on their second launch after
-      it deploys.]`
+      foreground. The worker also precaches straight from the server now (`cache: 'reload'`), so
+      a new build cannot fill its cache with old files from the browser's HTTP cache; the live
+      host's headers already forced that check, and the smoke test's server did not. Installs
+      still on the earlier build pick this up on their second launch after it deploys.]`
 26. **2026-09-28: No chatbot, anywhere.** The game takes no free-text input to any model. Dan:
     "remove the open channel - everything needs to be routed through deterministic trees." It
     needs no login and no API key and runs on any device, offline. Every number comes from the

@@ -54,6 +54,14 @@ class Handler(SimpleHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(hit[1])
 
+    def send_header(self, keyword: str, value: str) -> None:
+        # An old Last-Modified lets the browser's HTTP cache treat every file as fresh for weeks,
+        # as a host with no revalidation headers would. Without this the update checks pass or
+        # fail by the age of the build. The worker's precache must not read through that cache.
+        if keyword == "Last-Modified":
+            value = "Mon, 01 Jan 2024 00:00:00 GMT"
+        super().send_header(keyword, value)
+
     def end_headers(self) -> None:
         path = self.path.split("?")[0]
         for pattern, headers in self.rules:

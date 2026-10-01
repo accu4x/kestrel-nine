@@ -7,6 +7,7 @@
   const SITE = !!window.K9_SITE; // site edition: installable app, save files, challenge links
   const SEED_RE = /^(HAUL|SURVEY|BLOCKADE|TREATY)-(S|M|L)-([A-Z0-9]{1,8})$/;
   const MODE_COL = { solo: COL.you, centaur: COL.cen, machine: COL.nav, best: COL.best };
+  const DIALOG_SCREENS = ['prologue', 'brief', 'debrief'];
 
   // ------------------------------------------------------------ utilities
   const $ = (s) => document.querySelector(s);
@@ -498,6 +499,13 @@
         btn('◂ Back', () => go('title'), 'ghost'));
     },
 
+    prologue() {
+      return h('div', { class: 'stack' },
+        h('header', { class: 'mhead' }, h('div', { class: 'eyebrow' }, 'Kestrel Nine'), h('h1', {}, 'Prologue')),
+        section(null, dialogBlock()),
+        h('div', { class: 'row' }, G.prologueReplay ? btn('◂ Back to the Chronicle', () => go('chronicle'), 'ghost') : btn('Skip prologue ▸', endPrologue, 'ghost')));
+    },
+
     campaign() {
       const next = C.CAMPAIGN.findIndex((c) => !prog.done[c.id]);
       return h('div', { class: 'stack' },
@@ -606,6 +614,7 @@
           nextDef ? btn('Next: ' + nextDef.title + ' ▸', () => openMission(nextDef), 'primary') : null,
           m.kind === 'campaign' && !nextDef ? btn('Read the Chronicle ▸', () => go('chronicle'), 'primary') : null,
           btn('Fly this map again', () => { const spec = Object.assign({}, m); delete spec.mod; startRun(spec); go('play'); }, nextDef ? 'ghost' : ''),
+          prologueSeen() ? null : btn('Start at the beginning', () => openPrologue(false), 'ghost'),
           btn('◂ Menu', () => go(m.kind === 'campaign' ? 'campaign' : m.kind === 'daily' ? 'daily' : 'arcade'), 'ghost')));
       }
       return h('div', { class: 'stack' }, kids);
@@ -708,7 +717,7 @@
       return h('div', { class: 'stack' },
         h('header', { class: 'mhead' }, h('div', { class: 'eyebrow' }, 'Chronicle'), h('h1', {}, 'The history of the reach')),
         h('blockquote', { class: 'maxim' }, 'The machine is fast. The mind is wide. Neither is enough.', h('cite', {}, 'Ione Sato, Cycle 12')),
-        body, btn('◂ Back', () => go('title'), 'ghost'));
+        body, h('div', { class: 'row' }, btn('Replay the prologue', () => openPrologue(true))), btn('◂ Back', () => go('title'), 'ghost'));
     },
   };
 
@@ -842,6 +851,7 @@
     const next = G.pendingImport;
     if (!next) return;
     prog.done = next.done; prog.rep = next.rep; prog.runs = next.runs;
+    if (next.prologue) prog.prologue = true; // an import never un-sees the prologue on this device
     G.pendingImport = null; G.saveMsg = 'Save imported.';
     saveProg(); renderStatus(); renderConsole();
   }
@@ -869,6 +879,23 @@
           h('span', { class: 'lamp', 'aria-label': T.sat(c, m.sol) ? 'met' : 'not met' }), h('span', {}, T.demandText(p, c)), h('span', { class: 'pips', 'aria-label': 'weight ' + c.w }, '●'.repeat(c.w))))));
     });
     return h('div', { class: 'stack' }, section('Terms', terms), section('Delegates', dels));
+  }
+
+  // ------------------------------------------------------------ prologue (first launch, item 35)
+  // A save with Mission 1 done counts as having seen it.
+  const prologueSeen = () => prog.prologue === true || !!prog.done.c1;
+  function markPrologue() { if (prog.prologue !== true) { prog.prologue = true; saveProg(); } }
+  // A replay (from the Chronicle) never changes progress and returns to the Chronicle.
+  function openPrologue(replay) {
+    G.prologueReplay = !!replay;
+    G.screen = 'prologue';
+    startDialog(C.PROLOGUE, endPrologue);
+    go('prologue');
+  }
+  function endPrologue() {
+    if (G.prologueReplay) { go('chronicle'); return; }
+    markPrologue();
+    openMission(C.CAMPAIGN[0]);
   }
 
   function openMission(def) {
@@ -1164,6 +1191,12 @@
     R.vtext(ctx, 'CAMPAIGN · COLD START', 26, 46, 9, COL.muted);
   }
 
+  // Dark. Then a cursor.
+  function drawPrologue(ctx, t) {
+    ctx.save(); ctx.globalAlpha = 0.3; R.stars(ctx, t, 0.6, 0); ctx.restore();
+    if (reduced || Math.floor(t * 1.6) % 2 === 0) R.vtext(ctx, '_', 72, 300, 30, COL.you, 'left');
+  }
+
   function drawTitle(ctx, t) {
     R.stars(ctx, t, 3, G.warp > 0.05 ? G.warp * 3 : 0);
     R.planet(ctx, 690, 330, 150, t, { alpha: 0.85, color: COL.muted, ringColor: COL.you });
@@ -1225,6 +1258,7 @@
     const t = G.t;
     const m = G.m;
     if (G.screen === 'title' || G.screen === 'help') drawTitle(ctx, t);
+    else if (G.screen === 'prologue') drawPrologue(ctx, t);
     else if (G.screen === 'campaign') drawCampaign(ctx, t);
     else if (['daily', 'arcade', 'records', 'rumors', 'chronicle'].includes(G.screen)) {
       R.stars(ctx, t, 2, G.warp * 2); R.planet(ctx, 820, 470, 110, t, { alpha: 0.5 });
@@ -1295,7 +1329,7 @@
         const q = REACH[c.place];
         if (Math.hypot(q.x - w.x, q.y - w.y) < 26 && (next < 0 || i <= next)) openMission(c);
       });
-    } else if (G.screen === 'brief' || G.screen === 'debrief') {
+    } else if (DIALOG_SCREENS.includes(G.screen)) {
       if (G.dlg && !G.dlg.done && !G.dlg.choices) advance();
     }
   }
@@ -1309,7 +1343,7 @@
     const tag = document.activeElement && document.activeElement.tagName;
     if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z' && G.screen === 'play') { e.preventDefault(); undo(); return; }
-    if (G.dlg && !G.dlg.done && (G.screen === 'brief' || G.screen === 'debrief')) {
+    if (G.dlg && !G.dlg.done && DIALOG_SCREENS.includes(G.screen)) {
       if (G.dlg.choices && /^[1-9]$/.test(e.key)) { const c = G.dlg.choices[+e.key - 1]; if (c) { e.preventDefault(); choose(c); } }
     }
   });
@@ -1327,7 +1361,8 @@
 
   $('#btn-sound').addEventListener('click', () => { Snd.init(); settings.sound = !settings.sound; store.set('settings', settings); renderStatus(); });
   $('#btn-crt').addEventListener('click', () => { settings.crt = !settings.crt; scr.fx = settings.crt; store.set('settings', settings); renderStatus(); });
-  $('#btn-home').addEventListener('click', () => go('title'));
+  // Leaving the first-launch prologue for the title screen counts as skipping it.
+  $('#btn-home').addEventListener('click', () => { if (G.screen === 'prologue' && !G.prologueReplay) markPrologue(); go('title'); });
 
   // live-reload friendliness: keep the viewer's place across republishes
   const hot = window.claude && window.claude.hot;
@@ -1347,6 +1382,7 @@
     renderStatus();
     const challenge = challengeFromUrl();
     if (challenge) openRun(challenge);
+    else if (!prologueSeen()) openPrologue(false);
     else go((data && data.screen) || 'title');
     requestAnimationFrame(frame);
   }

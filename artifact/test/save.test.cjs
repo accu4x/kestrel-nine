@@ -50,6 +50,18 @@ assert(back.ok, 'valid save should parse: ' + back.error);
 assert(back.ok && JSON.stringify(back.progress) === JSON.stringify(prog), 'round trip should restore progress exactly');
 assert(good().app === 'kestrel-nine' && good().v === 1 && good().exported === new Date(NOW).toISOString(), 'export header');
 
+// The prologue flag (item 35): optional boolean, carried both ways
+assert(!('prologue' in good().progress) && !('prologue' in back.progress), 'no prologue key: older saves keep their shape and still parse');
+const seen = S.exportSave(Object.assign({}, prog, { prologue: true }), new Date(NOW));
+const sr = parse(seen);
+assert(seen.progress.prologue === true && sr.ok && sr.progress.prologue === true, 'prologue: true round-trips');
+const unseen = good(); unseen.progress.prologue = false;
+const ur = parse(unseen);
+assert(ur.ok && ur.progress.prologue === false, 'prologue: false is accepted');
+rejects('prologue as a string', (d) => { d.progress.prologue = 'true'; });
+rejects('prologue as a number', (d) => { d.progress.prologue = 1; });
+rejects('prologue as null', (d) => { d.progress.prologue = null; });
+
 // Header rules
 rejects('not JSON', () => '{ nope');
 rejects('array root', () => '[]');
@@ -109,5 +121,6 @@ assert(!/innerHTML|outerHTML|insertAdjacentHTML|document\.write|DOMParser|create
 
 // Import never touches settings or callsign: the parsed result carries progress only.
 assert(back.ok && Object.keys(back).sort().join() === 'ok,progress' && Object.keys(back.progress).sort().join() === 'done,rep,runs', 'result shape is progress only');
+assert(sr.ok && Object.keys(sr.progress).sort().join() === 'done,prologue,rep,runs', 'result shape with the prologue flag');
 
 console.log(failed ? `save: ${failed} failure(s)` : 'save: all checks passed');

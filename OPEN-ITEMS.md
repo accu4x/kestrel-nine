@@ -4,7 +4,7 @@ Decisions, tech debt and open questions for Kestrel Nine. Ideas live in `BACKLOG
 Keep entries dated. **Correct, don't overwrite:** when a decision is superseded, mark it with the
 date and a pointer to what replaced it. Numbers are stable IDs, not priority.
 
-_Last updated: 2026-09-28 (public repo live, item 30; PWA site edition built, item 25; item 22 closed)_
+_Last updated: 2026-10-01 (first-launch prologue, item 35; lore interview round 5, item 36; patrons, hulls, relay backups and the Lantern contact, item 37; items 31–34 and the monetization note on item 12 from 2026-09-30)_
 
 ## The artifacts
 
@@ -209,6 +209,122 @@ Two editions, one source (`node artifact/build.mjs` and `node artifact/build.mjs
     problem names. One wording change on the way: item 24's note said a "hidden seed" exists,
     and now says "private design context". Later work goes through branches and pull requests.
 
+31. **2026-09-30: Combat is a new job type, Engagement, built first.** Dan picked it over a Purge
+    decoy mission. It is a turn-based fight with no dice: the enemy's shots are shown in advance,
+    and the pilot splits reactor power between weapons (assigned to enemy subsystems) and shield
+    arcs. Disable and escape, never destroy. NAV-7 alone is greedy by threat removed per unit of
+    power; the charted best is exact by dynamic programming. The Purge decoy mission stays in
+    BACKLOG for "resist the Purge" (item 20). Design: `docs/design-engagement-and-modules.md` §2.
+    Dan: "we need to come up with a fun way to include combat. I like how everything has been NP
+    based. How can we pair that with combat?"
+32. **2026-09-30: Ship modules are the build-crafting pieces, on every job type.** Dan: the
+    "jokers" should be ship modules. They change rules, not just numbers. Each declares a solver
+    cost (instance transform, scoring change, or solver change), and NAV-7 and the charted best
+    always play under the same modules as the pilot. Centaur modules (for example a fourth
+    advisory) change the partnership, never Statute 4.1. Records key on seed plus loadout.
+    Starter set of 13 in the design doc §3. Names are placeholders until the lore interview.
+33. **2026-09-30: Ship classes with strengths and weaknesses.** Dan's idea. Six classes
+    (Courier, Freighter, Cutter, Picket, Envoy, Salvage tug). Classes change the loadout and the
+    run economy; modules change the puzzle. Design doc §4. Whether the *Second Wind* is a Courier
+    and whether classes are Consortium license classes are open for the interview.
+    `[amended 2026-10-01: classes are hulls your mind transfers into, one at a time; the Second
+    Wind is the first, a Courier. Item 37]`
+34. **2026-09-30: A roguelite run mode.** Dan chose runs over a persistent hangar: modules are
+    bought during a run on a seeded sector map and reset after it; ship classes and a wider
+    module pool unlock over time, sideways and never as stat boosts. Dan's references: Balatro,
+    Summoners War, Infinity Kingdom ("they tend to not have very big story. But infinitely
+    replayable") and how Path of Exile got popular; "I would stay away from p2w games or loot box
+    heavy games". Design doc §5. Build order: phase A (Engagement), B (modules and classes),
+    C (runs), each handed to Claude Code. `[amended 2026-10-01: a run is a contract season and
+    classes are refits of the Second Wind, item 36; the prologue is phase 0, item 35]`
+35. **2026-10-01: Laplace's awakening becomes a first-launch prologue (phase 0).** Dan: "we need
+    to figure out where to put the Laplace dialog. It is more of an intro than the daily seed.
+    Maybe it's the first mission every player has to take." Today the scene opens Mission 1's
+    briefing (`content.js`, `CAMPAIGN` `c1.brief`), so a player who starts with the Daily seed,
+    the Arcade or a challenge link never meets Laplace or Winter. Dan chose a first-launch
+    prologue over locking Daily and Arcade behind Mission 1:
+    - The scene moves out of `c1.brief` into its own `PROLOGUE`: from "LOADER 0.9" through
+      Laplace's "Fly it or don't. But if you go, when you dock, ask for Winter." `c1.brief` then
+      starts at "AUGMENTED INTERFACE v3.7 · … RELAY STATION, BAY 7".
+    - It plays once, on first open, before the title screen. It is skippable and can be replayed
+      from the Chronicle.
+    - Her line becomes a real choice. **Fly to Relay Station** shows "SECOND WIND · HELM UNLOCKED
+      · YOURS" and opens Mission 1's briefing. **Not yet** opens the title screen with
+      everything unlocked. Draft reply for "Not yet", for Dan's review (item 28): *"Then not
+      yet. The ship will keep. So will the crate."*
+    - Challenge links (`?c=…`) skip the prologue and play the seed; their debrief offers
+      "Start at the beginning".
+    - Progress gains a `prologue` flag (seen or skipped). Players whose saves already have
+      Mission 1 done are treated as having seen it. `save.js` accepts the flag as an optional
+      boolean in `progress`; the save version stays 1.
+    - Handed to Claude Code as phase 0, before Engagement (design doc §6).
+    - `[amended 2026-10-01: Dan, "make the reply only be 1 choice". The prologue ends with one
+      choice, **(Take the helm.)**, then "SECOND WIND · HELM UNLOCKED · YOURS", and always opens
+      Mission 1's briefing. The "Not yet" branch and its reply line are dropped; the briefing's
+      Abort still reaches the title screen. Handover: `HANDOVER-phase0-prologue-2026-10-01.md`
+      (local only).]`
+    - **Done 2026-10-01:** built in commit `af787c6` on branch `phase0-prologue`. `content.js`
+      has `PROLOGUE`; `game.js` has the prologue screen, Skip, the first-launch rule, "Start at
+      the beginning" on a challenge debrief and "Replay the prologue" on the Chronicle; `save.js`
+      takes the optional `prologue` flag. Checked against the earlier `c1.brief`: every other
+      dialog line is unchanged. `engine.test.cjs`, `save.test.cjs`, `leak.test.cjs` and
+      `smoke_site.py` pass, and all three editions open on the prologue from a fresh profile.
+      Two small calls made in the build: the HOME button during the first-launch prologue counts
+      as a skip and opens the title screen; importing a save never un-sees the prologue on a
+      device. `[open]` Dan to republish the two claude.ai editions and deploy the site edition
+      after the pull request merges.
+36. **2026-10-01: Lore interview, round 5 (combat, modules, classes, runs).** Dan's answers,
+    recorded as design decisions; they become canon when he approves the names draft and the
+    lore files are edited (`lore/CANON.md`). Full record: design doc §7.
+    - **Enemies:** a wide cast. The Inquisition (with a grapple that seizes you), Salem's
+      Armada, Mining Guild security and Black Market enforcers (with a reactor drain), each a
+      generator doctrine (§2).
+    - **Finale:** set by the season seed.
+    - **Modules:** Consortium-certified by default. Engine mods (Second Opinion, Deep Polish)
+      make an engine less "glass", so they are illegal and only the Black Market Purveyors sell
+      them.
+    - **Classes:** Consortium license classes. The *Second Wind* stays the one ship and is
+      re-papered and refitted each season. The Salvor refit's gear comes from the Nyx Verge
+      freighter graveyard. `[superseded same day by item 37: hulls, not refits; Salvor hulls
+      still come from Nyx Verge]`
+    - **Runs:** a contract season for Winter's network, started with a clean hold. `[amended same
+      day by item 37: the season's patron is one of four factions, chosen by the player]`
+    - **Names:** Claude drafts, Dan reviews. Draft in design doc §9. `[2026-10-01: not approved;
+      Dan asked for "more sci-fi flavored and less functional flavored" names, so the draft is
+      being reworked]`
+    - **Envoy:** its built-in Second Opinion is an illegal engine mod, so its charter carries a
+      diplomatic exemption, legal in treaties only (Dan, same day; §4).
+37. **2026-10-01: Patrons, one-body minds, relay backups and a hidden Lantern contact.** Dan:
+    "what if we had four factions and the names are each stylistically the same … they can pick
+    one of four (like you pick the faction and the ship). Maybe you get downloaded into a ship but
+    you can only inhabit one ship at a time. Like your soul is electronic but it cannot clone
+    itself. When your ship explodes you have an inert backup from the last relay." Decided:
+    - **Patrons:** each contract season the player picks one of four patron factions: Academia
+      (mythic names), Salem's Armada (spacer slang), the Miners' Union (work-crew talk) and the
+      Consortium (financial instruments). Dan: "Augmented Lantern are like covert agents inside
+      the other factions … Outer Relay Commune are NPCs only." The campaign is unchanged.
+    - **Same mechanics, one signature:** every patron sells the same 13 module mechanics under its
+      own names, plus one signature perk. Dan: "same 13 mechanics plus one signature is perfect".
+    - **Glass & light** moves to the Lantern: its two contraband engine mods (Second Lantern,
+      Cracked Glass) are the same in every season. `[clarified 2026-10-01: so of the 13
+      mechanics, 11 are certified and take patron names; these two keep one shared name each and
+      get no patron variants (design doc §9)]`
+    - **Hulls, not refits:** a mind inhabits one hull at a time and transfers into a hull class
+      each season; the *Second Wind* is the first. Supersedes the refit decision in item 36.
+    - **Backups:** a mind cannot clone itself. An inert backup at the last relay wakes if the hull
+      is lost, without what happened since; a restore costs credits. **Canon amended** in
+      `lore/FACTIONS.md` (the Augmented: backup line replaced, covert-agents line added), with
+      Dan's approval of the wording. The in-game Chronicle in `content.js` does not carry the old
+      line, so it needs no sync for this.
+    - **Hidden Lantern contact:** each season hides one, found through a captain-word that appears
+      twice in the season's text; ignoring it costs nothing. Dan: "make it subtle so it's a slight
+      challenge a player can find", and it "could add a twist later in the scenario". The twist
+      is undecided; a ledger flag is the hook.
+    - **Names:** four sets drafted in design doc §9, for review. Signatures drafted in §5.
+      `[approved 2026-10-01: Dan signed off on the four name sets, the Lantern contraband and the
+      four signatures. They enter content.js with phase B and the lore files then]`
+    Design doc §4, §5 and §9.
+
 ## Open questions
 
 11. **Who can post to the Records and Rumor Net?** `[partly answered 2026-09-28: the public
@@ -222,6 +338,12 @@ Two editions, one source (`node artifact/build.mjs` and `node artifact/build.mjs
 12. **Solitary constraint check.** `[open 2026-09-28]` The Rumor Net and leaderboards are
     community features. They are built so the game is complete for one player (the opponent is
     NAV-7), and nothing depends on an audience. Confirm this stays a hobby, not a venture.
+    `[noted 2026-09-30: Dan asked how a browser PWA like this could be monetized. Options
+    discussed: a free core with a one-time paid unlock (campaign or full module pool),
+    pay-what-you-want on itch.io, optional supporter cosmetics, Steam later via a desktop wrapper;
+    no ads, no energy timers, no loot boxes, no pay-to-win, no paid model features. **Undecided.**
+    This is the vehicle question (`../AGENTS.md`, "ask which vehicle"); `CLAUDE.md`'s "no
+    monetization driver" stands until Dan decides.]`
 13. **Mobile.** `[open 2026-09-28]` The game runs on a phone, but vector labels are small at
     400 px. Desktop is the target for now.
 

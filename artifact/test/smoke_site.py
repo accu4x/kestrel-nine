@@ -2,9 +2,10 @@
 
 Build first (node artifact/build.mjs --site). Needs Python Playwright with Chromium.
 Serves artifact/dist/site locally with the _headers rules applied (so the real CSP is enforced),
-then checks: no console errors or CSP violations; a campaign mission plays to the debrief; save
-export and import; challenge links; and, with the server stopped and the network off, a reload
-still starts the game from the service worker.
+then checks: no console errors or CSP violations; a fresh profile opens on the prologue, which
+leads into Mission 1 and never plays twice; a campaign mission plays to the debrief; save export
+and import; the Chronicle's prologue replay; challenge links; and, with the server stopped and the
+network off, a reload still starts the game from the service worker.
 """
 from __future__ import annotations
 
@@ -16,7 +17,7 @@ from functools import partial
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-from playwright.sync_api import Page, sync_playwright
+from playwright.sync_api import BrowserContext, Page, sync_playwright
 
 ROOT = Path(__file__).resolve().parents[1] / "dist" / "site"
 SHOTS = Path(sys.argv[1]) if len(sys.argv) > 1 else None
@@ -77,6 +78,28 @@ def run_dialog_to(page: Page, until: str, limit: int = 300) -> bool:
     return False
 
 
+def heading(page: Page) -> str:
+    return page.locator("#console h1").inner_text()
+
+
+def fly_haul(page: Page, problem_js: str) -> None:
+    """From a finished briefing, fly a haul map to its results table. Needs CRT off, so screen
+    and world coordinates map linearly."""
+    click_text(page, "Begin solo run")
+    click_text(page, "Skip to centaur run")
+    click_text(page, "Start fresh")
+    pts = page.evaluate("""() => {
+      const p = %s;
+      const r = document.querySelector('.tube canvas').getBoundingClientRect();
+      return p.pts.map((q) => [r.left + q.x / K9Render.WW * r.width, r.top + q.y / K9Render.WH * r.height]);
+    }""" % problem_js)
+    for x, y in pts[1:]:
+        page.mouse.click(x, y)
+        page.wait_for_timeout(30)
+    click_text(page, "File centaur plan")
+    page.wait_for_selector("#console table.results")
+
+
 def main() -> int:
     server = ThreadingHTTPServer(("127.0.0.1", 0), partial(Handler, directory=str(ROOT)))
     threading.Thread(target=server.serve_forever, daemon=True).start()
@@ -85,11 +108,15 @@ def main() -> int:
 
     with sync_playwright() as pw:
         browser = pw.chromium.launch()
-        ctx = browser.new_context(viewport={"width": 1280, "height": 800}, accept_downloads=True)
-        page = ctx.new_page()
-        page.on("console", lambda m: errors.append(m.text) if m.type == "error" else None)
-        page.on("pageerror", lambda e: errors.append(str(e)))
 
+        def fresh_profile() -> tuple[BrowserContext, Page]:
+            c = browser.new_context(viewport={"width": 1280, "height": 800}, accept_downloads=True)
+            p = c.new_page()
+            p.on("console", lambda m: errors.append(m.text) if m.type == "error" else None)
+            p.on("pageerror", lambda e: errors.append(str(e)))
+            return c, p
+
+        ctx, page = fresh_profile()
         page.goto(base)
         page.wait_for_selector("#console button")
         check("default-src 'self'" in (page.evaluate("fetch(location.href).then(r => r.headers.get('content-security-policy'))") or ""), "CSP header served")
@@ -104,41 +131,38 @@ def main() -> int:
         check(page.evaluate("!!navigator.serviceWorker.controller"), "service worker controls the page")
         manifest = page.evaluate("fetch('manifest.webmanifest').then(r => r.json())")
         check(manifest["start_url"] == "/kestrel-nine/" and manifest["display"] == "standalone", "manifest start_url and display")
+        # First launch: the prologue, still there after the reload above because nothing was chosen.
+        check(heading(page) == "Prologue", "a fresh profile opens on the prologue")
+        if SHOTS:
+            page.wait_for_timeout(600)
+            page.screenshot(path=str(SHOTS / "site-prologue.png"))
+
+        # Taking the helm opens mission 1 at Bay 7; then the mission to the debrief. CRT off for fly_haul.
+        page.click("#btn-crt")
+        check(run_dialog_to(page, "Begin solo run"), "prologue and brief dialog reach the solo run")
+        said = page.locator("#console .dialog .said").all_inner_texts()
+        check(heading(page) == "Cold Start" and said[0].startswith("AUGMENTED INTERFACE v3.7") and not any("LOADER 0.9" in s for s in said), "taking the helm opens mission 1's briefing at Bay 7")
+        check(any("ASK FOR WINTER" in s for s in said) and "You asked. So. I’m Winter." in said, "Winter's lines are intact")
+        fly_haul(page, "(() => { const d = K9Content.CAMPAIGN[0]; return K9Engine.TYPES.haul.generate(d.seed, d.params); })()")
+        check(run_dialog_to(page, "Copy result"), "debrief dialog finishes and shows the result card")
+        check(page.locator("#console .sharecard").inner_text().rstrip().endswith("https://play.latentmirror.com/kestrel-nine/"), "result card carries the play URL")
+        check(page.locator("#console button", has_text="Start at the beginning").count() == 0, "no way back to the prologue from a debrief once it has played")
+        if SHOTS:
+            page.screenshot(path=str(SHOTS / "site-debrief.png"))
+        page.reload()
+        page.wait_for_selector("#console button")
+        check(page.locator("#console button", has_text="Campaign: Cold Start").count() == 1, "a reload after the prologue opens the title screen")
         if SHOTS:
             page.screenshot(path=str(SHOTS / "site-title.png"))
 
-        # Campaign mission 1 to the debrief. CRT off so screen and world coordinates map linearly.
-        page.click("#btn-crt")
-        click_text(page, "Campaign: Cold Start")
-        page.locator("#console .mission button").first.click()
-        check(run_dialog_to(page, "Begin solo run"), "brief dialog reaches the solo run")
-        click_text(page, "Begin solo run")
-        click_text(page, "Skip to centaur run")
-        click_text(page, "Start fresh")
-        pts = page.evaluate("""() => {
-          const d = K9Content.CAMPAIGN[0], p = K9Engine.TYPES.haul.generate(d.seed, d.params);
-          const r = document.querySelector('.tube canvas').getBoundingClientRect();
-          return p.pts.map((q) => [r.left + q.x / K9Render.WW * r.width, r.top + q.y / K9Render.WH * r.height]);
-        }""")
-        for x, y in pts[1:]:
-            page.mouse.click(x, y)
-            page.wait_for_timeout(30)
-        click_text(page, "File centaur plan")
-        page.wait_for_selector("#console table.results")
-        check(run_dialog_to(page, "Copy result"), "debrief dialog finishes and shows the result card")
-        check(page.locator("#console .sharecard").inner_text().rstrip().endswith("https://play.latentmirror.com/kestrel-nine/"), "result card carries the play URL")
-        if SHOTS:
-            page.screenshot(path=str(SHOTS / "site-debrief.png"))
-
         # Records: the Centaur Index bars render under the CSP; save export and import.
-        page.click("#btn-home")
         click_text(page, "Records")
         check(page.locator(".bar-fill").count() == 3 and "width" in (page.locator(".bar-fill").first.get_attribute("style") or ""), "index bars have widths")
         with page.expect_download() as dl:
             click_text(page, "Export save")
         check(dl.value.suggested_filename == "kestrel-nine-save.json", "export filename")
         save = json.loads(Path(dl.value.path()).read_text(encoding="utf-8"))
-        check(save["app"] == "kestrel-nine" and save["v"] == 1 and "c1" in save["progress"]["done"], "export content")
+        check(save["app"] == "kestrel-nine" and save["v"] == 1 and "c1" in save["progress"]["done"] and save["progress"].get("prologue") is True, "export content")
         bad = dict(save, app="other")
         page.set_input_files("#save-file", files=[{"name": "bad.json", "mimeType": "application/json", "buffer": json.dumps(bad).encode()}])
         page.wait_for_selector("#console [role=status]")
@@ -149,14 +173,70 @@ def main() -> int:
         click_text(page, "Replace my progress")
         check("UNION +7" in page.locator("#st-rep").inner_text(), "import applied after confirm")
 
+        # Replay from the Chronicle: back to the Chronicle at the end, progress untouched.
+        page.click("#btn-home")
+        click_text(page, "Chronicle")
+        before = page.evaluate("localStorage.getItem('k9.progress')")
+        click_text(page, "Replay the prologue")
+        check(heading(page) == "Prologue", "the Chronicle replays the prologue")
+        check(run_dialog_to(page, "Replay the prologue"), "the replay ends back on the Chronicle")
+        check(heading(page) == "The history of the reach" and page.evaluate("localStorage.getItem('k9.progress')") == before, "a replay changes no progress")
+
         # Challenge links.
         page.goto(base + "?c=HAUL-M-7F3A")
         page.wait_for_selector("#console h1")
-        check(page.locator("#console h1").inner_text() == "Arcade haul M", "challenge link opens the arcade seed")
+        check(heading(page) == "Arcade haul M", "challenge link opens the arcade seed")
         check("?" not in page.url, "challenge query cleared from the address bar")
         page.goto(base + "?c=%3Cscript%3E")
         page.wait_for_selector("#console button")
         check(page.locator("#console button", has_text="Campaign: Cold Start").count() == 1, "bad challenge code ignored")
+
+        # A fresh profile that skips the prologue lands in mission 1 and never sees it again.
+        ctx2, skipper = fresh_profile()
+        skipper.goto(base)
+        skipper.wait_for_selector("#console h1")
+        click_text(skipper, "Skip prologue")
+        check(heading(skipper) == "Cold Start", "skipping the prologue opens mission 1's briefing")
+        skipper.reload()
+        skipper.wait_for_selector("#console button")
+        check(skipper.locator("#console button", has_text="Campaign: Cold Start").count() == 1, "a reload after skipping opens the title screen")
+        ctx2.close()
+
+        # HOME during the first-launch prologue counts as a skip. This profile has seen the prologue
+        # by the flag alone (no mission done), so it also shows an import never un-sees it.
+        ctx4, homer = fresh_profile()
+        homer.goto(base)
+        homer.wait_for_selector("#console h1")
+        homer.click("#btn-home")
+        check(homer.locator("#console button", has_text="Campaign: Cold Start").count() == 1, "HOME during the prologue opens the title screen")
+        homer.reload()
+        homer.wait_for_selector("#console button")
+        check(homer.locator("#console button", has_text="Campaign: Cold Start").count() == 1, "a reload after HOME does not reopen the prologue")
+        click_text(homer, "Records")
+        for label, progress in (("prologue: false", {"prologue": False, "rep": {"union": 1}}), ("no prologue key", {"rep": {"union": 2}})):
+            blank = {"app": "kestrel-nine", "v": 1, "progress": progress}
+            homer.set_input_files("#save-file", files=[{"name": "blank.json", "mimeType": "application/json", "buffer": json.dumps(blank).encode()}])
+            homer.wait_for_selector("text=Import this save?")
+            click_text(homer, "Replace my progress")
+            stored = homer.evaluate("JSON.parse(localStorage.getItem('k9.progress'))")
+            check(stored["rep"]["union"] == progress["rep"]["union"] and stored.get("prologue") is True, f"importing a save with {label} keeps the prologue seen")
+        homer.reload()
+        homer.wait_for_selector("#console button")
+        check(homer.locator("#console button", has_text="Campaign: Cold Start").count() == 1, "a reload after those imports opens the title screen")
+        ctx4.close()
+
+        # A fresh profile on a challenge link plays the seed; its debrief offers the prologue.
+        ctx3, guest = fresh_profile()
+        guest.goto(base + "?c=HAUL-M-7F3A")
+        guest.wait_for_selector("#console h1")
+        check(heading(guest) == "Arcade haul M", "a challenge link skips the prologue on a fresh profile")
+        guest.click("#btn-crt")
+        run_dialog_to(guest, "Begin solo run")
+        fly_haul(guest, "K9Engine.TYPES.haul.generate('arcade-7F3A', K9Engine.SIZES.haul.M)")
+        check(run_dialog_to(guest, "Start at the beginning"), "the challenge debrief offers Start at the beginning")
+        click_text(guest, "Start at the beginning")
+        check(heading(guest) == "Prologue", "Start at the beginning opens the prologue")
+        ctx3.close()
 
         # Offline start: server gone, network off.
         server.shutdown()

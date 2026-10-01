@@ -794,9 +794,10 @@
         if (pr) pr.then(() => { status.textContent = 'Copied. Paste it anywhere.'; }, selectCard); else selectCard();
       } catch (e) { selectCard(); }
     }, 'primary');
-    const ext = (label, href) => h('a', { class: 'btn', href, target: '_blank', rel: 'noopener noreferrer' }, label);
+    // An icon alone has no name: the label is what a screen reader says and the tooltip shows.
+    const ext = (icon, name, href) => h('a', { class: 'btn icon', href, target: '_blank', rel: 'noopener noreferrer', 'aria-label': 'Share on ' + name, title: 'Share on ' + name }, icon);
     const inst = h('input', { id: 'masto-inst', class: 'field', value: store.get('mastodon', ''), placeholder: 'mastodon.social', maxlength: '80', 'aria-label': 'Your Mastodon server', autocomplete: 'off', spellcheck: 'false' });
-    const masto = ext('Mastodon', '#');
+    const masto = ext('🐘', 'Mastodon', '#');
     const setM = () => {
       const host = (inst.value.trim().replace(/^https?:\/\//i, '').replace(/\/.*$/, '').toLowerCase().replace(/[^a-z0-9.-]/g, '')) || 'mastodon.social';
       masto.href = 'https://' + host + '/share?text=' + enc;
@@ -808,8 +809,9 @@
       h('div', { class: 'row' }, copy, status),
       h('div', { class: 'share-row' },
         h('label', { class: 'muted small', for: 'masto-inst' }, 'Your Mastodon server'), inst),
-      h('div', { class: 'row' }, masto, ext('Bluesky', 'https://bsky.app/intent/compose?text=' + enc), ext('X', 'https://x.com/intent/post?text=' + enc)),
-      h('p', { class: 'muted small' }, 'Each button opens a ready-to-send post in a new tab. Nothing is posted until you send it.'));
+      h('div', { class: 'row', role: 'group', 'aria-label': 'Share on a network' },
+        masto, ext('🦋', 'Bluesky', 'https://bsky.app/intent/compose?text=' + enc), ext('𝕏', 'X', 'https://x.com/intent/post?text=' + enc)),
+      h('p', { class: 'muted small' }, 'Mastodon, Bluesky and X. Each button opens a ready-to-send post in a new tab. Nothing is posted until you send it.'));
   }
   // ------------------------------------------------------------ save files (site edition, item 27)
   const saveSchema = () => ({

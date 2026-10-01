@@ -390,6 +390,8 @@ Two editions, one source (`node artifact/build.mjs` and `node artifact/build.mjs
     so the whole title screen fits; the page keeps clear of the status bar and home indicator;
     and sideways, the console no longer runs 16 px past the bottom of the screen. Measured in a
     desktop browser at iPad sizes, not on an iPad: Dan to confirm on the device.]`
+    `[2026-10-01: merged as ce54646 and live in all three editions: home version 6, public
+    version 7, and the site edition, whose served files match that build.]`
 
 ## Tech debt
 

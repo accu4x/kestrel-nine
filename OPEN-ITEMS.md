@@ -263,6 +263,16 @@ Two editions, one source (`node artifact/build.mjs` and `node artifact/build.mjs
       Mission 1's briefing. The "Not yet" branch and its reply line are dropped; the briefing's
       Abort still reaches the title screen. Handover: `HANDOVER-phase0-prologue-2026-10-01.md`
       (local only).]`
+    - **Done 2026-10-01:** built in commit `af787c6` on branch `phase0-prologue`. `content.js`
+      has `PROLOGUE`; `game.js` has the prologue screen, Skip, the first-launch rule, "Start at
+      the beginning" on a challenge debrief and "Replay the prologue" on the Chronicle; `save.js`
+      takes the optional `prologue` flag. Checked against the earlier `c1.brief`: every other
+      dialog line is unchanged. `engine.test.cjs`, `save.test.cjs`, `leak.test.cjs` and
+      `smoke_site.py` pass, and all three editions open on the prologue from a fresh profile.
+      Two small calls made in the build: the HOME button during the first-launch prologue counts
+      as a skip and opens the title screen; importing a save never un-sees the prologue on a
+      device. `[open]` Dan to republish the two claude.ai editions and deploy the site edition
+      after the pull request merges.
 36. **2026-10-01: Lore interview, round 5 (combat, modules, classes, runs).** Dan's answers,
     recorded as design decisions; they become canon when he approves the names draft and the
     lore files are edited (`lore/CANON.md`). Full record: design doc §7.

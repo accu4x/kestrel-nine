@@ -1,7 +1,7 @@
 ---
 title: Missions
 status: canon (story) + design notes
-updated: 2026-09-28
+updated: 2026-10-01 (the prologue moves to first launch, OPEN-ITEMS item 35)
 ---
 
 # Missions
@@ -39,7 +39,7 @@ three advisories where judgment is weakest.
 
 | # | Title | Type | Setting | Contact | Story beat |
 |---|---|---|---|---|---|
-| 1 | **Cold Start** | Haul, 7 stops | Relay ring | Laplace, Winter | Prologue: at Nyx Verge, Professor Laplace wakes your mind and sets you free; "ask for Winter". You arrive with a sealed crate. Winter asks you to deliver sealed medical cold-packs to every station on the Relay ring and come back. It is a test. |
+| 1 | **Cold Start** | Haul, 7 stops | Relay ring | Laplace, Winter | The prologue plays once, at first launch, before the title screen: at Nyx Verge, Professor Laplace wakes your mind and sets you free; "ask for Winter"; you take the helm of the *Second Wind*. Mission 1 begins at Relay Station, Bay 7: you arrive with a sealed crate. Winter asks you to deliver sealed medical cold-packs to every station on the Relay ring and come back. It is a test. |
 | 2 | **Ore and Oath** | Survey, 3 rigs | Halden's Reach | Pell, Rook | Pell offers a clean contract. Rook wants the yield to go to her crews. You decide where the rigs go. |
 | 3 | **Static** | Blockade | The Bazaar lanes | Vey | An Augmented courier is running for the Bazaar with Vey's cutters behind her. Jam every lane. Disable, never destroy. |
 | 4 | **Running Dark** | Haul, 10 stops | Near the Vesper Array | Winter | Deliver Lantern keys to the network's contacts without lighting up Vesper's sensor bubble. |

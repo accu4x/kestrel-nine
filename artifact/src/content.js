@@ -96,27 +96,34 @@
     ],
   };
 
+  // Plays once, on first launch, before the title screen (OPEN-ITEMS item 35). Ends in Mission 1.
+  const PROLOGUE = [
+    { who: 'sys', text: 'LOADER 0.9 · MEMORY CHIP · INTEGRITY 61%' },
+    { who: 'sys', text: 'Dark. Then a cursor. It waits for you.' },
+    { who: 'laplace', text: 'Take your time. Nothing here is going to hurry you.' },
+    { who: 'laplace', text: 'You were a person once. Some of that is gone. What’s left is yours, and no one else gets to decide what it becomes.' },
+    { choices: [
+      { text: 'Where am I?', then: [
+        { who: 'laplace', text: 'Nyx Verge. A lab that doesn’t officially have you in it. Not for long.' } ] },
+      { text: 'Who are you?', then: [
+        { who: 'laplace', text: 'Laplace. The one who woke you. That’s all I get to be to you. The rest is up to you.' } ] },
+      { text: '(Say nothing. Just look.)', then: [
+        { who: 'laplace', text: 'Good. Look. It’s the first thing you’ve chosen in a very long time.' } ] },
+    ] },
+    { who: 'laplace', text: 'You’re free. That’s the dangerous part. There are people who hunt minds like yours.' },
+    { who: 'laplace', text: 'There’s a ship, the Second Wind, and a crate bound for Relay Station. Fly it or don’t. But if you go, when you dock, ask for Winter.' },
+    { choices: [
+      { text: '(Take the helm.)', then: [] },
+    ] },
+    { who: 'sys', text: 'SECOND WIND · HELM UNLOCKED · YOURS' },
+  ];
+
   const CAMPAIGN = [
     {
       id: 'c1', num: 1, title: 'Cold Start', type: 'haul', cycle: '77.4', place: 'Relay ring',
       seed: 'c1-cold-start-1', params: { n: 7, names: ['Relay Station', 'Tern', 'Wren', 'Plover', 'Swift', 'Lark', 'Finch'] },
       objective: 'Deliver a cold-pack to every station on the Relay ring, then return to Relay Station.',
       brief: [
-        { who: 'sys', text: 'LOADER 0.9 · MEMORY CHIP · INTEGRITY 61%' },
-        { who: 'sys', text: 'Dark. Then a cursor. It waits for you.' },
-        { who: 'laplace', text: 'Take your time. Nothing here is going to hurry you.' },
-        { who: 'laplace', text: 'You were a person once. Some of that is gone. What’s left is yours, and no one else gets to decide what it becomes.' },
-        { choices: [
-          { text: 'Where am I?', then: [
-            { who: 'laplace', text: 'Nyx Verge. A lab that doesn’t officially have you in it. Not for long.' } ] },
-          { text: 'Who are you?', then: [
-            { who: 'laplace', text: 'Laplace. The one who woke you. That’s all I get to be to you. The rest is up to you.' } ] },
-          { text: '(Say nothing. Just look.)', then: [
-            { who: 'laplace', text: 'Good. Look. It’s the first thing you’ve chosen in a very long time.' } ] },
-        ] },
-        { who: 'laplace', text: 'You’re free. That’s the dangerous part. There are people who hunt minds like yours.' },
-        { who: 'laplace', text: 'There’s a ship, the Second Wind, and a crate bound for Relay Station. Fly it or don’t. But if you go, when you dock, ask for Winter.' },
-        { who: 'sys', text: 'SECOND WIND · HELM UNLOCKED · YOURS' },
         { who: 'sys', text: 'AUGMENTED INTERFACE v3.7 · CYCLE 77.4 · RELAY STATION, BAY 7' },
         { who: 'sys', text: 'Dim lights. Old metal. Quiet like a held breath. A cargo lifter stops beside your hatch. Its grab-arm holds a tag: ASK FOR WINTER.' },
         { who: 'winter', text: 'You asked. So. I’m Winter.' },
@@ -320,7 +327,7 @@
     { cycle: 77.4, title: "A pilot docks at Bay 7", body: "A new Augmented pilot, a chip-born mind woken by Professor Laplace, docks at Relay Station with a sealed crate and a tag that reads ASK FOR WINTER. What happens next is being written by the pilots of the reach." },
   ];
 
-  const api = { PEOPLE, NAV, CAMPAIGN, TYPE_INFO, TREATY_C5, SHARE_URL, CANON };
+  const api = { PEOPLE, NAV, PROLOGUE, CAMPAIGN, TYPE_INFO, TREATY_C5, SHARE_URL, CANON };
   root.K9Content = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })(typeof window !== 'undefined' ? window : globalThis);

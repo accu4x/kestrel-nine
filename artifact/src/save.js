@@ -4,7 +4,7 @@
  * Contract for parseSave: a save restores progress and records, never settings, callsign or
  * page content. It checks everything before anything is touched and returns either
  * { ok: true, progress } or { ok: false, error }. Errors are fixed strings and never echo the
- * file. Unknown keys at the top level, in `progress`, in `done` (not a campaign id) and in
+ * file. `progress.prologue` is an optional boolean (item 35); saves without it stay valid. Unknown keys at the top level, in `progress`, in `done` (not a campaign id) and in
  * `rep` reject the file; unknown fields inside a run or a `done` entry are dropped.
  * What travels is IDs and numbers, never free text (item 27): export leaves run titles out, and
  * import rebuilds each title from the validated kind, type and seed key through schema.titleOf.
@@ -31,11 +31,13 @@
   const byteLength = (s) => (typeof TextEncoder !== 'undefined' ? new TextEncoder().encode(s).length : s.length * 3);
 
   function exportSave(prog, now) {
+    // JSON drops `prologue` while it is unset, so older and newer saves share one shape.
     return {
       app: APP, v: V, exported: (now || new Date()).toISOString(),
       progress: JSON.parse(JSON.stringify({
         done: prog.done || {}, rep: prog.rep || {},
         runs: (prog.runs || []).map((r) => { const c = Object.assign({}, r); delete c.title; return c; }),
+        prologue: prog.prologue,
       })),
     };
   }
@@ -80,7 +82,8 @@
     if (!onlyKeys(data, ['app', 'v', 'exported', 'progress'])) return fail('That save has fields this game does not know.');
     if (data.exported !== undefined && (typeof data.exported !== 'string' || data.exported.length > 40)) return fail('That save has a bad export date.');
     const p = data.progress;
-    if (!isObj(p) || !onlyKeys(p, ['done', 'rep', 'runs'])) return fail('That save has fields this game does not know.');
+    if (!isObj(p) || !onlyKeys(p, ['done', 'rep', 'runs', 'prologue'])) return fail('That save has fields this game does not know.');
+    if (p.prologue !== undefined && typeof p.prologue !== 'boolean') return fail('That save’s prologue flag is damaged.');
 
     const done = {};
     if (p.done !== undefined) {
@@ -112,7 +115,9 @@
         runs.push(c);
       }
     }
-    return { ok: true, progress: { done, rep, runs } };
+    const progress = { done, rep, runs };
+    if (p.prologue !== undefined) progress.prologue = p.prologue;
+    return { ok: true, progress };
   }
 
   const api = { APP, V, MAX_BYTES, MAX_RUNS, REP_MIN, REP_MAX, exportSave, parseSave };

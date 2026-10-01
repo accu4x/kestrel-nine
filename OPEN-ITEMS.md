@@ -272,7 +272,10 @@ Two editions, one source (`node artifact/build.mjs` and `node artifact/build.mjs
       Two small calls made in the build: the HOME button during the first-launch prologue counts
       as a skip and opens the title screen; importing a save never un-sees the prologue on a
       device. `[open]` Dan to republish the two claude.ai editions and deploy the site edition
-      after the pull request merges.
+      after the pull request merges. `[2026-10-01: merged as 41fc64d. Both claude.ai editions
+      republished from that build: home version 5 (`db` and `user` carried forward, canon write
+      rule kept), public version 6 (no capabilities). The public edition was checked live: a
+      fresh visit opens on the prologue. The site deploy is still open.]`
 36. **2026-10-01: Lore interview, round 5 (combat, modules, classes, runs).** Dan's answers,
     recorded as design decisions; they become canon when he approves the names draft and the
     lore files are edited (`lore/CANON.md`). Full record: design doc §7.

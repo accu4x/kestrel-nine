@@ -246,6 +246,8 @@ def main() -> int:
         click_text(page, "File centaur plan")
         page.wait_for_selector("#console table.results")
         check(run_dialog_to(page, "Copy result") and "seed ENGA-M-7F3A" in page.locator("#console .sharecard").inner_text(), "the engagement debrief shows its result card")
+        page.click("#btn-pause")
+        check(page.locator("#btn-pause").get_attribute("aria-pressed") == "true", "the debrief replay can be paused")
         page.click("#btn-home")
 
         # A fresh profile that skips the prologue lands in mission 1 and never sees it again.

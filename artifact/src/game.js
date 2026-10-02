@@ -11,6 +11,7 @@
   const SEED_RE = new RegExp('^(' + Object.keys(TYPE_OF).join('|') + ')-(S|M|L)-([A-Z0-9]{1,8})$');
   const MODE_COL = { solo: COL.you, centaur: COL.cen, machine: COL.nav, best: COL.best };
   const DIALOG_SCREENS = ['prologue', 'brief', 'debrief'];
+  const REPLAY_REST = 5; // seconds into a debrief replay at which every plan is fully drawn
 
   // ------------------------------------------------------------ utilities
   const $ = (s) => document.querySelector(s);
@@ -309,7 +310,7 @@
     m.outcome = pilotBest >= 99.95 ? 'optimal' : beatMachine ? 'beat' : 'lost';
     m.centaurWin = E.better(mod, m.cen.value, m.machine.value) && (!m.solo || !E.better(mod, m.solo.value, m.cen.value));
     m.dlgDone = false;
-    G.replayT = 0; G.layer = 'all';
+    G.replayT = reduced ? REPLAY_REST : 0; G.paused = false; G.layer = 'all';
     // record locally
     const run = runRecord();
     prog.runs.push(run); if (prog.runs.length > 300) prog.runs.shift();
@@ -648,7 +649,9 @@
             row('Charted best', 'r-best', m.charted.value, 100, m.charted.proven ? 'proven, ' + m.charted.work.toLocaleString('en-US') + ' states' : 'best known')))),
         h('p', { class: 'muted small' }, 'NAV-7’s procedure: ' + m.machine.procedure),
         h('div', { class: 'row layers', role: 'group', 'aria-label': 'Show on screen' },
-          ['all', 'machine', 'solo', 'centaur', 'best'].map((k) => btn({ all: 'All', machine: 'NAV-7', solo: 'Solo', centaur: 'Centaur', best: 'Best' }[k], () => { G.layer = k; G.replayT = 0; renderConsole(); }, 'chip' + (G.layer === k ? ' on' : ''), { 'aria-pressed': G.layer === k ? 'true' : 'false' }))),
+          ['all', 'machine', 'solo', 'centaur', 'best'].map((k) => btn({ all: 'All', machine: 'NAV-7', solo: 'Solo', centaur: 'Centaur', best: 'Best' }[k], () => { G.layer = k; G.replayT = reduced ? REPLAY_REST : 0; renderConsole(); }, 'chip' + (G.layer === k ? ' on' : ''), { 'aria-pressed': G.layer === k ? 'true' : 'false' })),
+          // With reduced motion the replay does not run, so there is nothing to pause.
+          reduced ? null : btn('Pause replay', () => { G.paused = !G.paused; renderConsole(); }, 'chip' + (G.paused ? ' on' : ''), { id: 'btn-pause', 'aria-pressed': G.paused ? 'true' : 'false' })),
         section(null, dialogBlock()),
       ];
       if (d && d.done) {
@@ -1272,6 +1275,8 @@
       let i = 0;
       while (at >= spans[i]) at -= spans[i++];
       L = reel[i]; beat = Math.floor(at);
+      // Reduced motion: no reel. Show how the last plan on it ends.
+      if (reduced) { L = reel[reel.length - 1]; beat = spans[spans.length - 1] - 1; }
     }
     const sim = T.simulate(p, L.sol), n = sim.rounds.length, order = T.order(L.sol);
     const showing = beat >= 1 && beat <= n ? sim.rounds[beat - 1] : null; // the round on screen, in a replay
@@ -1287,9 +1292,9 @@
       const live = x.shots.filter((sh) => sh.round < n && before(sh.round)[i] > 0);
       const now = showing ? live.filter((sh) => sh.round === showing.r) : live;
       if (now.length) {
-        const to = arcAt(x.arc, AR + 6), blocked = showing && showing.up[x.arc];
+        const to = arcAt(x.arc, AR + 6);
         ctx.save(); ctx.setLineDash([5, 6]); R.line(ctx, spots[i].x - 14, spots[i].y, to.x, to.y, COL.inq, showing ? 2 : 1.1, showing ? 0.95 : 0.4); ctx.restore();
-        if (showing) R.vtext(ctx, (blocked ? 'BLOCKED · ' : '') + x.dmg, (spots[i].x + to.x) / 2, (spots[i].y + to.y) / 2 - 14, 8, COL.inq, 'center');
+        if (showing) R.vtext(ctx, String(x.dmg), (spots[i].x + to.x) / 2, (spots[i].y + to.y) / 2 - 14, 8, COL.inq, 'center');
       }
       if (!showing) R.vtext(ctx, live.length ? 'R' + live.map((sh) => sh.round + 1).join(' ') + ' · ' + x.dmg : 'SILENCED', spots[i].x - 26, spots[i].y - 4, 7, live.length ? COL.inq : COL.muted, 'right', 0.95);
     });
@@ -1314,7 +1319,10 @@
       ctx.save(); ctx.strokeStyle = up ? L.color : COL.dim; ctx.lineWidth = up ? 3 : 1.4; ctx.globalAlpha = up ? 0.95 : 0.8;
       ctx.beginPath(); ctx.arc(me.x, me.y, AR, ARC_DIR[a] - 0.62, ARC_DIR[a] + 0.62); ctx.stroke(); ctx.restore();
       const q = arcAt(a, AR + 30);
-      R.vtext(ctx, name + (beat < 0 && count ? ' ' + count + '/' + n : ''), q.x, q.y - 4, 7, up ? L.color : COL.muted, a === 0 ? 'left' : a === 3 ? 'right' : 'center', 0.9);
+      // In a replay: what the fire on this side did, after the arc took its share.
+      const through = showing && showing.inc[a] ? Math.max(0, showing.inc[a] - (showing.up[a] ? T.SHIELD : 0)) : -1;
+      const tail = beat < 0 && count ? ' ' + count + '/' + n : through > 0 ? ' · -' + through : through === 0 ? ' · HELD' : '';
+      R.vtext(ctx, name + tail, q.x, q.y - 4, 7, through > 0 ? COL.inq : up ? L.color : COL.muted, a === 0 ? 'left' : a === 3 ? 'right' : 'center', 0.9);
     });
     // captions: the replay's moment, or the plan's dial
     if (beat >= 0) {
@@ -1422,7 +1430,7 @@
     const dt = Math.min(0.05, rawDt);
     G.last = now;
     G.t += reduced ? dt * 0.35 : dt;
-    G.replayT += dt;
+    if (!reduced && !G.paused) G.replayT += dt;
     G.warp = Math.max(0, G.warp - dt * 1.4);
     scr.resize();
     { const cw = scr.out.getBoundingClientRect().width || 1000; R.setTextBoost(Math.max(1, Math.min(1.6, 640 / cw))); }

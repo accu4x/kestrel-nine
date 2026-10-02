@@ -228,6 +228,42 @@ Two editions, one source (`node artifact/build.mjs` and `node artifact/build.mjs
     BACKLOG for "resist the Purge" (item 20). Design: `docs/design-engagement-and-modules.md` §2.
     Dan: "we need to come up with a fun way to include combat. I like how everything has been NP
     based. How can we pair that with combat?"
+    - **Built 2026-10-01 (phase A), one pull request, branch `phase-a-engagement`.** Engagement
+      is the fifth job type: Arcade (S/M/L), the Daily Seed, challenge codes `ENGA-M-xxxx`, a plan
+      editor in the console, a replay at the debrief, result cards, Records and save files. The
+      seed picks the enemy doctrine (Dan, 2026-10-01). The campaign is unchanged.
+    - **`[amended 2026-10-01]` A plan is a kill order and one dial, not a target for every weapon
+      in every round.** The first build followed §2: every round, a target for each of three
+      weapons and four shield switches, 28 choices in a medium fight. Dan, after playing it: "it
+      might be a bit too complicated. What can we do to reduce the amount of decisions?" He chose
+      the kill order over automatic shields alone, and kept every rule (engines, sensors, grapple,
+      drain). Now the pilot taps the enemy's parts in the order to darken them and sets how much
+      of the reactor feeds the guns; each round the guns work down the order, a point of plating
+      for a point of power, and what is left raises the shield arcs that block the most. A medium
+      fight's best plan names about four targets. The named weapons are gone.
+    - **Where the build departs from design doc §2**, each for a stated reason:
+      - *The plan's shape*, as above.
+      - *Score is hull left at the jump, higher is better*, not hull damage, lower is better.
+        A fight can be flown without a scratch, and "share of the charted best" divides by the
+        best score, so a best of zero damage would break every percentage on the Records. The
+        ordering of plans is the same. Hull starts at the worst case plus 10. Unspent power no
+        longer breaks ties.
+      - *Both sides fire at once.* A mount must be dark before its round to cancel that shot,
+        as §2 words it, so the first round's fire can only be shielded.
+      - *A doctrine's special subsystem is extra*, not in place of a mount.
+      - *NAV-7 alone ranks every part once*, by the fire it carries or the penalty it brings,
+        against its plating, and flies that order with half the reactor on the guns. It never
+        reads the schedule, and the engines and a drain are worth nothing to it.
+      - *Polish may reorder, drop a target or move the dial, and may not name a new target.*
+        Naming a target is the pilot's call under Statute 4.1; an advisory may propose one.
+      - *The charted best* flies every dial setting with every kill order and compares them.
+      - *Numbers:* a raised arc blocks 2; the S fight has a reactor of 4 and every part one
+        point thinner.
+    - **Tuning, from `engine.test.cjs` and a 100-fight sample per doctrine:** NAV-7 alone matches
+      the charted best in about 41% of M fights when the seed picks the enemy, inside §2's target
+      of 30 to 50%. By doctrine at M: Guild 45%, Armada 32%, Inquisition 22%, Market 20%. The
+      slowest L fight took the charted best about a third of a second in Node.
+      `[open]` Dan to review the new game text (listed in the pull request) like canon.
 32. **2026-09-30: Ship modules are the build-crafting pieces, on every job type.** Dan: the
     "jokers" should be ship modules. They change rules, not just numbers. Each declares a solver
     cost (instance transform, scoring change, or solver change), and NAV-7 and the charted best
@@ -366,6 +402,8 @@ Two editions, one source (`node artifact/build.mjs` and `node artifact/build.mjs
     so the whole title screen fits; the page keeps clear of the status bar and home indicator;
     and sideways, the console no longer runs 16 px past the bottom of the screen. Measured in a
     desktop browser at iPad sizes, not on an iPad: Dan to confirm on the device.]`
+    `[2026-10-01: merged as ce54646 and live in all three editions: home version 6, public
+    version 7, and the site edition, whose served files match that build.]`
 
 ## Tech debt
 

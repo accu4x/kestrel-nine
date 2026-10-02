@@ -711,7 +711,203 @@
     },
   };
 
-  const TYPES = { haul: Haul, survey: Survey, blockade: Blockade, treaty: Treaty };
+  // =====================================================================
+  // ENGAGEMENT: hold out until the drive spools. Disable and escape, never destroy.
+  // No dice: every enemy shot is on the schedule before the plan is filed.
+  //
+  // A plan is one dial and a kill order: [guns, part, part, ...]. Each round the guns spend up to
+  // `guns` power, a point of plating for a point of power, working down the order. Whatever power
+  // is left raises the shield arcs that block the most fire.
+  // =====================================================================
+  const ARCS = ['FORE', 'PORT', 'STARBOARD', 'AFT'];
+  const SHIELD = 2;   // damage one raised arc blocks in a round
+  const RESERVE = 10; // hull left when every shot lands and every penalty applies
+  // One doctrine per faction: how its ships are built and how they fight. `rate` is the chance a
+  // mount fires in a given round. `special` adds one subsystem with a rule of its own.
+  const DOCTRINES = {
+    inquisition: { name: 'INQUISITION CUTTER', thr: [2, 4], dmg: [2, 3], rate: 0.7, sensor: [3, 5], engine: [1, 2], tracked: 5, special: 'grapple', specialThr: [2, 3], seized: 8 },
+    armada: { name: 'ARMADA RAIDER', thr: [1, 3], dmg: [3, 4], rate: 0.8, sensor: [2, 4], engine: [1, 2], tracked: 4, extraMount: 1 },
+    guild: { name: 'GUILD SECURITY', thr: [4, 6], dmg: [3, 4], rate: 0.7, sensor: [2, 4], engine: [3, 4], tracked: 3, extraRound: 1, fewerMounts: 1 },
+    market: { name: 'ENFORCER', thr: [2, 4], dmg: [2, 4], rate: 0.7, sensor: [2, 4], engine: [1, 2], tracked: 4, special: 'drain', specialThr: [1, 3] },
+  };
+  const Engagement = {
+    type: 'engagement', dir: 'max', unit: 'hull', ARCS, SHIELD, DOCTRINES,
+    generate(seed, o) {
+      const rng = makeRng('engagement|' + seed);
+      const doctrine = o.doctrine || rng.pick(Object.keys(DOCTRINES));
+      const d = DOCTRINES[doctrine];
+      const R = (o.rounds || 4) + (d.extraRound || 0);
+      const total = o.subs || 5;
+      const between = ([lo, hi]) => rng.int(lo, hi);
+      // `soft` thins every subsystem a little, for the small fights on a small reactor.
+      const plate = (range) => Math.max(1, between(range) - (o.soft || 0));
+      // Subsystems: mounts first, then sensors, engines and the doctrine's special.
+      const mounts = Math.max(2, total - 2 + (d.extraMount || 0) - (d.fewerMounts || 0));
+      const subs = [];
+      for (let i = 0; i < mounts; i++) {
+        const dmg = between(d.dmg), arc = rng.int(0, 3);
+        const shots = [];
+        for (let r = 0; r < R; r++) if (rng() < d.rate) shots.push({ round: r, dmg, arc });
+        if (!shots.length) shots.push({ round: rng.int(0, R - 1), dmg, arc });
+        subs.push({ kind: 'mount', name: 'MOUNT ' + String.fromCharCode(65 + i), thr: plate(d.thr), dmg, arc, shots });
+      }
+      subs.push({ kind: 'sensor', name: 'SENSORS', thr: plate(d.sensor) });
+      subs.push({ kind: 'engine', name: 'ENGINES', thr: plate(d.engine) });
+      if (d.special) subs.push({ kind: d.special, name: d.special.toUpperCase(), thr: plate(d.specialThr) });
+      const at = (kind) => subs.findIndex((x) => x.kind === kind);
+      const tracked = d.tracked, seized = d.seized || 0;
+      const worst = subs.reduce((a, x) => a + (x.shots || []).reduce((b, sh) => b + sh.dmg, 0), 0) + tracked + (at('grapple') >= 0 ? seized : 0);
+      return { type: 'engagement', seed, doctrine, enemy: d.name, R, P: o.power || 5, subs,
+        sensor: at('sensor'), engine: at('engine'), grapple: at('grapple'), drain: at('drain'),
+        tracked, seized, hull: worst + RESERVE };
+    },
+    // No targets, and most of the reactor on the guns for when there are.
+    empty(p) { return [Math.max(1, p.P - 2)]; },
+    guns(s) { return s[0]; },
+    order(s) { return s.slice(1); },
+    // Power the reactor gives in a round, given what is still running at its start.
+    power(p, rem) { return p.P - (p.drain >= 0 && rem[p.drain] > 0 ? 1 : 0); },
+    // With the engines dark at the start of the last round, the ship jumps a round early.
+    over(p, r, rem) { return r >= p.R || (r === p.R - 1 && p.engine >= 0 && rem[p.engine] === 0); },
+    incoming(p, r, rem) {
+      const inc = [0, 0, 0, 0];
+      p.subs.forEach((x, i) => { if (x.shots && rem[i] > 0) for (const sh of x.shots) if (sh.round === r) inc[sh.arc] += sh.dmg; });
+      return inc;
+    },
+    penalty(p, rem) {
+      return (p.sensor >= 0 && rem[p.sensor] > 0 ? p.tracked : 0) + (p.grapple >= 0 && rem[p.grapple] > 0 ? p.seized : 0);
+    },
+    // Would darkening part i still change anything after round r? The guns skip what would not:
+    // a mount with no shots left, or engines and a drain in the last round.
+    matters(p, i, r) {
+      const x = p.subs[i];
+      return x.shots ? x.shots.some((sh) => sh.round > r) : x.kind === 'sensor' || x.kind === 'grapple' || r < p.R - 1;
+    },
+    complete(p, s) {
+      if (!Array.isArray(s) || !Number.isInteger(s[0]) || s[0] < 0 || s[0] > p.P) return false;
+      const order = s.slice(1);
+      return new Set(order).size === order.length && order.every((i) => Number.isInteger(i) && i >= 0 && i < p.subs.length);
+    },
+    // Fly a plan. Both sides fire at once: a mount must be dark before its round to cancel its shot.
+    simulate(p, s) {
+      const valid = Engagement.complete(p, s);
+      const guns = valid ? s[0] : 0, order = valid ? s.slice(1) : [];
+      const rem = p.subs.map((x) => x.thr);
+      const rounds = [];
+      let damage = 0;
+      for (let r = 0; !Engagement.over(p, r, rem); r++) {
+        const avail = Engagement.power(p, rem), inc = Engagement.incoming(p, r, rem);
+        let left = Math.min(guns, avail);
+        const fired = [];
+        for (const i of order) {
+          if (left <= 0) break;
+          if (rem[i] <= 0 || !Engagement.matters(p, i, r)) continue;
+          const hit = Math.min(rem[i], left);
+          rem[i] -= hit; left -= hit;
+          fired.push({ tgt: i, hit });
+        }
+        const spent = Math.min(guns, avail) - left;
+        // Every arc costs 1, so the arcs that block the most are the best use of what is left.
+        const up = [false, false, false, false];
+        [0, 1, 2, 3].filter((a) => inc[a] > 0).sort((a, b) => Math.min(SHIELD, inc[b]) - Math.min(SHIELD, inc[a]) || a - b)
+          .slice(0, avail - spent).forEach((a) => { up[a] = true; });
+        const taken = inc.reduce((a, v, i) => a + Math.max(0, v - (up[i] ? SHIELD : 0)), 0);
+        damage += taken;
+        rounds.push({ r, avail, guns: spent, fired, up, inc, taken, rem: rem.slice() });
+      }
+      const tracked = p.sensor >= 0 && rem[p.sensor] > 0, seized = p.grapple >= 0 && rem[p.grapple] > 0;
+      return { valid, rounds, damage, tracked, seized, value: p.hull - damage - Engagement.penalty(p, rem) };
+    },
+    evaluate(p, s) {
+      const r = Engagement.simulate(p, s);
+      return { valid: r.valid, value: r.value, note: r.valid && s.length === 1 ? 'No targets: shields only' : '' };
+    },
+    // What a part is worth to NAV-7: the fire on its schedule, or the cost of being tracked or
+    // seized. The engines and a drain are worth nothing to it.
+    worth(p, i) {
+      const x = p.subs[i];
+      return x.shots ? x.shots.reduce((a, sh) => a + sh.dmg, 0) : x.kind === 'sensor' ? p.tracked : x.kind === 'grapple' ? p.seized : 0;
+    },
+    machine(p) {
+      const ratio = (i) => Engagement.worth(p, i) / p.subs[i].thr;
+      const order = p.subs.map((x, i) => i).filter((i) => Engagement.worth(p, i) > 0).sort((a, b) => ratio(b) - ratio(a) || a - b);
+      return { solution: [Math.ceil(p.P / 2)].concat(order), work: p.subs.length,
+        procedure: 'Biggest threat for the plating: rank every part by the fire it carries, or the penalty it brings, against how hard it is to darken. Take them in that order with half the reactor on the guns. Never looks at the schedule.' };
+    },
+    // Every plan one change away: the dial up or down, a part dropped, a part added anywhere, or
+    // two neighbours in the order swapped.
+    neighbours(p, s) {
+      const out = [], guns = s[0], order = s.slice(1);
+      const plan = (g, o) => [g].concat(o);
+      if (guns > 0) out.push({ sol: plan(guns - 1, order), kind: 'dial', guns: guns - 1 });
+      if (guns < p.P) out.push({ sol: plan(guns + 1, order), kind: 'dial', guns: guns + 1 });
+      order.forEach((i, k) => out.push({ sol: plan(guns, order.filter((x) => x !== i)), kind: 'drop', i }));
+      for (let i = 0; i < p.subs.length; i++) {
+        if (order.includes(i)) continue;
+        for (let k = 0; k <= order.length; k++) out.push({ sol: plan(guns, order.slice(0, k).concat([i], order.slice(k))), kind: 'add', i, before: k < order.length ? order[k] : -1 });
+      }
+      for (let k = 0; k + 1 < order.length; k++) {
+        const o = order.slice(); [o[k], o[k + 1]] = [o[k + 1], o[k]];
+        out.push({ sol: plan(guns, o), kind: 'swap', i: order[k + 1], before: order[k] });
+      }
+      return out;
+    },
+    // Naming a target is the pilot's call (Statute 4.1): an advisory may propose one, polish may not.
+    bestChange(p, s, mayAdd) {
+      const base = Engagement.simulate(p, s).value;
+      let best = null;
+      for (const n of Engagement.neighbours(p, s)) {
+        if (n.kind === 'add' && !mayAdd) continue;
+        const v = Engagement.simulate(p, n.sol).value;
+        if (v > (best ? best.value : base)) best = Object.assign(n, { value: v, gain: v - base });
+      }
+      return best;
+    },
+    polish(p, s) {
+      if (!Engagement.complete(p, s) || s.length < 2) return { ok: false, reason: 'No kill order yet. Name at least one target, then this engine may refine it.' };
+      let t = s.slice();
+      for (let guard = 0; guard < 200; guard++) {
+        const b = Engagement.bestChange(p, t);
+        if (!b) break;
+        t = b.sol;
+      }
+      return { ok: true, solution: t };
+    },
+    suggest(p, s) {
+      const b = Engagement.complete(p, s) ? Engagement.bestChange(p, s, true) : null;
+      if (!b) return { kind: 'none', text: 'No single change saves more hull.' };
+      const name = (i) => p.subs[i].name;
+      const what = b.kind === 'dial' ? 'guns to ' + b.guns
+        : b.kind === 'drop' ? 'leave ' + name(b.i) + ' alone'
+          : (b.kind === 'add' ? 'add ' : 'take ') + name(b.i) + (b.before >= 0 ? ' before ' + name(b.before) : ' last');
+      return { kind: 'next', node: b.kind === 'dial' ? -1 : b.i, text: 'Advisory: ' + what + ' (+' + b.gain + ' hull).' };
+    },
+    // The archive's answer: every dial setting with every kill order, flown and compared.
+    exact(p) {
+      let best = null, work = 0;
+      const fly = (s) => { work++; const v = Engagement.simulate(p, s).value; if (!best || v > best.value) best = { solution: s.slice(), value: v }; };
+      fly([0]);
+      for (let guns = 1; guns <= p.P; guns++) {
+        const s = [guns], used = new Array(p.subs.length).fill(false);
+        const extend = () => {
+          fly(s);
+          for (let i = 0; i < p.subs.length; i++) {
+            if (used[i]) continue;
+            used[i] = true; s.push(i); extend(); s.pop(); used[i] = false;
+          }
+        };
+        extend();
+      }
+      return { solution: best.solution, value: best.value, work, proven: true };
+    },
+    charted(p) { return Engagement.exact(p); },
+    format(v) { return v + ' hull'; },
+    describe(p, s) {
+      return 'Guns ' + s[0] + '. ' + (s.length > 1 ? 'Order: ' + s.slice(1).map((i) => p.subs[i].name).join(', ') : 'No targets') + '.';
+    },
+  };
+
+  const TYPES = { haul: Haul, survey: Survey, blockade: Blockade, treaty: Treaty, engagement: Engagement };
 
   // percent of charted best (100 = matches best)
   function pctOf(mod, value, best) {
@@ -726,6 +922,11 @@
     survey: { S: { sites: 14, budget: 6, deposits: 40 }, M: { sites: 18, budget: 8, deposits: 54 }, L: { sites: 22, budget: 10, deposits: 70 } },
     blockade: { S: { n: 11 }, M: { n: 15 }, L: { n: 20 } },
     treaty: { S: { n: 8 }, M: { n: 10 }, L: { n: 13 } },
+    engagement: {
+      S: { rounds: 3, subs: 4, power: 4, soft: 1 },
+      M: { rounds: 4, subs: 5, power: 5 },
+      L: { rounds: 5, subs: 6, power: 5 },
+    },
   };
 
   const api = { RIG, makeRng, hashSeed, TYPES, SIZES, pctOf, better, W, H, ORE, BIRDS, DELEGATES, round1 };

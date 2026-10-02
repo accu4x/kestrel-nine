@@ -1,7 +1,7 @@
 ---
 title: Missions
 status: canon (story) + design notes
-updated: 2026-10-01 (the prologue moves to first launch, OPEN-ITEMS item 35)
+updated: 2026-10-01 (the prologue moves to first launch, item 35; Engagement joins the type table, item 31)
 ---
 
 # Missions
@@ -28,6 +28,7 @@ Designer notes only: the in-game text never names the underlying problems.
 | **Survey** | Place K drill rigs to cover the richest deposits. | Maximum coverage | Greedy by marginal yield | Single-swap local search | Exhaustive over site combinations |
 | **Blockade** | Jam every lane so an Inquisition wing cannot track a courier. Minimize power. | Minimum weighted vertex cover | Greedy by lanes-per-kc, no pruning | Drop redundant jammers, swap a jammer for its neighbours | Branch and bound |
 | **Treaty** | Choose treaty terms that win the most weighted support from the delegates. | Weighted MAX-2-SAT | One pass, term by term | Single-flip local search | Exhaustive over term sets |
+| **Engagement** | Hold out against a hostile ship until the drive spools: name the order in which to darken its parts, and how much of the reactor feeds the guns. Shields take the rest. Disable, never destroy. | Ordering a chosen subset of targets under a per-round power budget (a scheduling problem with deadlines: each shot is cancelled only if its mount is dark in time) | Rank every part once by threat for its plating; half the reactor on the guns | Single-change local search (swap neighbours, drop a target, move the dial); never adds a target | Every dial setting with every kill order, flown and compared |
 | Trade *(backlog)* | Buy and sell across ports with a limited hold and fuel. | Prize-collecting routing + knapsack | — | — | — |
 
 Why these procedures: each "NAV-7 alone" rule is a real, published one-pass heuristic. It is
@@ -50,5 +51,6 @@ The campaign ends with the first line of the Chronicle that players write togeth
 
 ## Daily Seed and Arcade
 
-- **Daily Seed:** one map per mission type per UTC day, the same for every player.
+- **Daily Seed:** one map per mission type per UTC day, the same for every player. Engagement
+  is in the Daily Seed and the Arcade; the campaign stays at six missions without it.
 - **Arcade:** pick a type and a size; share the seed code to race a friend on the same map.

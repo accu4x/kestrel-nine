@@ -167,6 +167,18 @@ td.num, th.num { text-align: right; font-family: var(--hh-font-mono); font-varia
 .met .lamp { background: var(--k9-cen); border-color: var(--k9-cen); box-shadow: 0 0 8px var(--k9-cen); }
 .pips { font-size: 8px; letter-spacing: 2px; color: var(--k9-nav); }
 
+/* engagement: the kill order, the enemy's parts, and the fight as planned */
+.subs, .aims, .rounds { margin: 0; padding: 0; display: flex; flex-direction: column; gap: 5px; font-size: var(--hh-size-small); }
+.subs, .aims { list-style: none; }
+.rounds { padding-left: 20px; }
+.subs li { display: grid; grid-template-columns: 76px 48px minmax(0, 1fr) auto; gap: 8px; align-items: center; }
+.aims li { display: grid; grid-template-columns: 20px minmax(0, 1fr) auto; gap: 8px; align-items: center; counter-increment: aim; }
+.aims { counter-reset: aim; }
+.aims li::before { content: counter(aim); font-family: var(--hh-font-mono); color: var(--hh-accent); }
+.subs b, .aims b { font-family: var(--hh-font-mono); font-weight: 500; font-size: 11px; letter-spacing: .08em; }
+.subs li.adv, .aims li.adv { box-shadow: 0 0 0 1px var(--k9-nav); border-radius: var(--hh-radius-cell); }
+.subs .place { font-family: var(--hh-font-mono); color: var(--hh-accent); min-width: 44px; text-align: center; }
+
 /* campaign list */
 .missions { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--hh-space-2); }
 .mission { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px var(--hh-space-3); align-items: center; padding: 10px 12px; background: var(--hh-ground); border-radius: var(--hh-radius-input); box-shadow: var(--hh-edge); }

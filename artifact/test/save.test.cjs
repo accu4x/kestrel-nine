@@ -33,6 +33,7 @@ const prog = {
     run(),
     run({ seedKey: 'd-2026-09-28-survey', kind: 'daily', type: 'survey', title: 'Daily survey', dir: 'max', solo: null, soloPct: null }),
     run({ seedKey: 'a-treaty-M-7F3A', kind: 'arcade', type: 'treaty', title: 'Arcade treaty M', dir: 'max' }),
+    run({ seedKey: 'a-engagement-L-K9', kind: 'arcade', type: 'engagement', title: 'Arcade engagement L', dir: 'max', machine: 41, solo: 38, centaur: 44, best: 44 }),
   ],
 };
 const good = () => JSON.parse(JSON.stringify(S.exportSave(prog, new Date(NOW))));
@@ -102,6 +103,7 @@ rejects('run advisories out of range', (d) => { d.progress.runs[0].advisoriesUse
 rejects('run from the future', (d) => { d.progress.runs[0].ts = NOW + 30 * 86400e3; });
 rejects('daily key names another job', (d) => { d.progress.runs[1].seedKey = 'd-2026-09-28-treaty'; });
 rejects('arcade key names another job', (d) => { d.progress.runs[2].type = 'survey'; });
+rejects('engagement record scored the wrong way round', (d) => { d.progress.runs[3].dir = 'min'; });
 rejects('campaign key belongs to another job', (d) => { d.progress.runs[0].seedKey = 'c2'; });
 rejects('prototype key as a type', (d) => { d.progress.runs[0].type = 'constructor'; });
 rejects('run missing a field', (d) => { delete d.progress.runs[0].best; });

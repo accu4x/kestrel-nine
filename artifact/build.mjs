@@ -26,6 +26,9 @@ function buildArtifact() {
     .replace('<title>Kestrel Nine</title>', PUBLIC ? '<title>Kestrel Nine</title>' : '<title>Kestrel Nine Home</title>')
     .replace('/*STYLE*/', () => src('style.css'))
     .replace('/*SCRIPTS*/', () => scripts);
+  // claude.ai wraps the page and declares the charset itself. Opened straight from disk nothing
+  // does, and the browser misreads every symbol, so the file has to say it first.
+  if (!html.startsWith('<meta charset="utf-8">')) throw new Error('template.html must start with its charset line.');
   mkdirSync(join(here, 'dist'), { recursive: true });
   const out = PUBLIC ? 'kestrel-nine-public.html' : 'kestrel-nine.html';
   writeFileSync(join(here, 'dist', out), html);

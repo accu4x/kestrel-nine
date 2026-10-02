@@ -139,6 +139,11 @@ together run.
 
 ## 3. Modules
 
+`[batch 1 built 2026-10-01: the eight modules of kind A, B1 and C below, with an Arcade refit
+picker. In the code the kinds are 'map', 'score' and 'engine'. Engagement's charted best now
+tries every plan, so its three modules no longer need solver work; Arc Discharge needs a new rule
+under the kill order. OPEN-ITEMS item 32 has the record.]`
+
 ### Principles
 
 1. **Modules change the rules, not just the numbers** (BACKLOG, *World*). "+10% yield" is out.

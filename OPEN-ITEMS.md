@@ -85,7 +85,7 @@ Two editions, one source (`node artifact/build.mjs` and `node artifact/build.mjs
     above and nothing else: "four" becomes "five", and the list gains the fight as its last
     clause. Drafted by Claude for Dan's approval; merging this entry is the approval. It is set on
     the public edition at its next republish, and still never on the home edition. New text (879
-    characters):]`
+    characters). `[set 2026-10-01 on the public edition, version 9; the page itself is unchanged.]`]`
     > Kestrel Nine is a retro vector space game of minds and machines. Three thousand years from
     > now, a law bans thinking machines, and the Augmented (human minds living in machine frames)
     > have been outlawed since Cycle 31. You fly as one of them, hiding as a licensed pilot with
@@ -289,6 +289,32 @@ Two editions, one source (`node artifact/build.mjs` and `node artifact/build.mjs
     always play under the same modules as the pilot. Centaur modules (for example a fourth
     advisory) change the partnership, never Statute 4.1. Records key on seed plus loadout.
     Starter set of 13 in the design doc §3. Names are placeholders until the lore interview.
+    - **Built 2026-10-01 (phase B, batch 1), branch `phase-b-modules`.** Dan's choices: an Arcade
+      refit picker rather than engine-only; the cheap modules first and the solver-heavy ones in
+      a second batch; Arc Discharge's new rule decided with that batch; and the player picks a
+      patron in the Arcade, which sets the names only.
+      - *Eight modules:* Ghost Hull, Light Rigs, Overlap Refinery, Wide-band Emitter, Silver
+        Tongue, Hardened Aft, and the two engine mods, Second Lantern (a fourth advisory) and
+        Cracked Glass (polish looks two changes ahead). All four approved name sets (item 37)
+        are in `content.js`; the working names stay in the code as ids.
+      - *The Arcade picker:* the *Second Wind* carries three. A loadout rides on the end of a
+        seed code and a record key (`SURVEY-M-7F3A+LIGHT.OVERLAP`), so a friend flies the same
+        puzzle and a save file can name only a known, fitting, sorted loadout. The Daily Seed
+        and the campaign stay module-free.
+      - *The Centaur Index counts runs flown without modules* (design doc §8, "records sprawl").
+        Refit runs are listed under My runs.
+      - *Deep polish is one rule for every job:* ordinary polish, then a look two changes ahead.
+        The design note had a different widening per job (3-opt for Haul, pair moves elsewhere).
+      - *Not built here:* hull classes. They set slots, reactor and pay, which belong to seasons
+        (phase C); the Arcade ship is the *Second Wind*, a Courier with three slots.
+      - `[open]` **Ghost Hull has nothing to act on in the Arcade.** Arcade hauls have no sensor
+        bubble (only campaign missions 4 and 6 do), so the picker does not offer it. It is built
+        and tested against mission 4's map. Dan to choose: give Arcade hauls a bubble at some
+        size, which changes what existing seeds of that size mean, or leave it for seasons.
+      - `[open]` **Where the module names live in `lore/`.** Item 37 says they enter the lore
+        files with phase B. Canon is Dan's to place: say which file, and I will add them.
+      - `[open]` Light Rigs makes the charted best on a large Survey slower: about half a second
+        in Node at worst, where the plain map takes about a tenth. Not timed on an iPad.
 33. **2026-09-30: Ship classes with strengths and weaknesses.** Dan's idea. Six classes
     (Courier, Freighter, Cutter, Picket, Envoy, Salvage tug). Classes change the loadout and the
     run economy; modules change the puzzle. Design doc §4. Whether the *Second Wind* is a Courier

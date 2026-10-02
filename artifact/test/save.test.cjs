@@ -13,10 +13,11 @@ const label = (t) => C.TYPE_INFO[t].label.toLowerCase();
 const schema = {
   campaigns: Object.fromEntries(C.CAMPAIGN.map((c) => [c.id, c.type])),
   typeDirs: Object.fromEntries(Object.keys(E.TYPES).map((t) => [t, E.TYPES[t].dir])),
+  modules: Object.fromEntries(Object.keys(E.MODULES).map((id) => [id, E.MODULES[id].job])), slots: E.SLOTS,
   titleOf(kind, type, seedKey) {
     if (kind === 'campaign') return C.CAMPAIGN.find((c) => c.id === seedKey).title;
     if (kind === 'daily') return 'Daily ' + label(type);
-    return 'Arcade ' + label(type) + ' ' + seedKey.split('-')[2];
+    return 'Arcade ' + label(type) + ' ' + seedKey.split('-')[2] + (seedKey.includes('+') ? ' · refit' : '');
   },
 };
 const NOW = Date.UTC(2026, 8, 28, 12);
@@ -34,6 +35,7 @@ const prog = {
     run({ seedKey: 'd-2026-09-28-survey', kind: 'daily', type: 'survey', title: 'Daily survey', dir: 'max', solo: null, soloPct: null }),
     run({ seedKey: 'a-treaty-M-7F3A', kind: 'arcade', type: 'treaty', title: 'Arcade treaty M', dir: 'max' }),
     run({ seedKey: 'a-engagement-L-K9', kind: 'arcade', type: 'engagement', title: 'Arcade engagement L', dir: 'max', machine: 41, solo: 38, centaur: 44, best: 44 }),
+    run({ seedKey: 'a-survey-M-7F3A+light.overlap.second', kind: 'arcade', type: 'survey', title: 'Arcade survey M · refit', dir: 'max', advisoriesUsed: 4 }),
   ],
 };
 const good = () => JSON.parse(JSON.stringify(S.exportSave(prog, new Date(NOW))));
@@ -104,6 +106,16 @@ rejects('run from the future', (d) => { d.progress.runs[0].ts = NOW + 30 * 86400
 rejects('daily key names another job', (d) => { d.progress.runs[1].seedKey = 'd-2026-09-28-treaty'; });
 rejects('arcade key names another job', (d) => { d.progress.runs[2].type = 'survey'; });
 rejects('engagement record scored the wrong way round', (d) => { d.progress.runs[3].dir = 'min'; });
+
+// Refit runs (item 32): the key ends in the loadout, and only a known, fitting, sorted one passes
+rejects('loadout names an unknown module', (d) => { d.progress.runs[4].seedKey = 'a-survey-M-7F3A+light.turbo'; });
+rejects('loadout module belongs to another job', (d) => { d.progress.runs[4].seedKey = 'a-survey-M-7F3A+light.tongue'; });
+rejects('loadout out of order', (d) => { d.progress.runs[4].seedKey = 'a-survey-M-7F3A+overlap.light'; });
+rejects('loadout repeats a module', (d) => { d.progress.runs[4].seedKey = 'a-survey-M-7F3A+light.light'; });
+rejects('loadout larger than the ship carries', (d) => { d.progress.runs[4].seedKey = 'a-survey-M-7F3A+deep.light.overlap.second'; d.progress.runs[4].advisoriesUsed = 1; });
+rejects('loadout with markup in it', (d) => { d.progress.runs[4].seedKey = 'a-survey-M-7F3A+<b>'; });
+rejects('a fourth advisory without the module for it', (d) => { d.progress.runs[4].seedKey = 'a-survey-M-7F3A+light.overlap'; });
+rejects('a loadout on a daily run', (d) => { d.progress.runs[1].seedKey = 'd-2026-09-28-survey+light'; });
 rejects('campaign key belongs to another job', (d) => { d.progress.runs[0].seedKey = 'c2'; });
 rejects('prototype key as a type', (d) => { d.progress.runs[0].type = 'constructor'; });
 rejects('run missing a field', (d) => { delete d.progress.runs[0].best; });

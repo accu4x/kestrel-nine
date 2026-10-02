@@ -68,3 +68,94 @@ for (const type of Object.keys(E.TYPES)) {
     }
   }
 }
+
+// Ship modules (OPEN-ITEMS item 32). For each one: every solver still valid under it, the charted
+// best still proven and still on top, the rule doing what it says, and NAV-7 alone still beatable.
+{
+  const C = require('../src/content.js');
+  assert(JSON.stringify(Object.keys(C.MODULES).sort()) === JSON.stringify(Object.keys(E.MODULES).sort()), 'content.js names every module the engine has, and no others');
+  for (const id of Object.keys(E.MODULES)) {
+    const named = C.MODULES[id].name ? [C.MODULES[id].name] : Object.keys(C.PATRONS).map((k) => C.MODULES[id].names[k]);
+    assert(named.every((n) => typeof n === 'string' && n.length > 2) && C.MODULES[id].rule.length > 5, 'module ' + id + ' has a name under every patron, and a rule');
+  }
+  // Ghost Hull needs a bubble, which only campaign maps have: use mission 4's.
+  const bubble = C.CAMPAIGN.find((c) => c.id === 'c4').params;
+  const cases = {
+    ghost: { type: 'haul', sizes: { C4: bubble } },
+    light: { type: 'survey' }, overlap: { type: 'survey' }, wideband: { type: 'blockade' }, tongue: { type: 'treaty' }, aft: { type: 'engagement' },
+  };
+  for (const id of Object.keys(cases)) {
+    const mod = E.TYPES[cases[id].type], sizes = cases[id].sizes || E.SIZES[cases[id].type];
+    for (const size of Object.keys(sizes)) {
+      let opt = 0, helped = 0, maxMs = 0;
+      const n = 25;
+      for (let k = 0; k < n; k++) {
+        const tag = 'module ' + id + ' ' + size + ' #' + k;
+        const plain = mod.generate('m' + k + size, sizes[size]);
+        const p = mod.generate('m' + k + size, Object.assign({}, sizes[size], { mods: [id] }));
+        assert(JSON.stringify(p.mods) === JSON.stringify([id]) && plain.mods.length === 0, tag + ' the map records its loadout');
+        const t0 = Date.now(); const ch = mod.charted(p); maxMs = Math.max(maxMs, Date.now() - t0);
+        const cv = mod.evaluate(p, ch.solution);
+        assert(ch.proven && cv.valid && Math.abs(cv.value - ch.value) < 1e-6, tag + ' charted best proven and consistent');
+        const m = mod.machine(p).solution, mv = mod.evaluate(p, m);
+        assert(mv.valid && !E.better(mod, mv.value, ch.value), tag + ' machine valid and not above the charted best');
+        const po = mod.polish(p, m), pv = mod.evaluate(p, po.solution);
+        assert(po.ok && pv.valid && !E.better(mod, mv.value, pv.value) && !E.better(mod, pv.value, ch.value), tag + ' polish');
+        // The rule only ever helps: the plain map's best plan, flown under the module, is no worse.
+        const base = mod.charted(plain), under = mod.evaluate(p, base.solution);
+        assert(under.valid && !E.better(mod, base.value, under.value) && !E.better(mod, under.value, ch.value), tag + ' the module never hurts, and the charted best covers it');
+        if (E.better(mod, ch.value, base.value)) helped++;
+        if (Math.abs(mv.value - ch.value) < 1e-6) opt++;
+      }
+      assert(helped > 0, 'module ' + id + ' ' + size + ' changes the best result on at least one map');
+      assert(opt < n, 'module ' + id + ' ' + size + ' leaves NAV-7 alone beatable');
+      console.log('module', id.padEnd(9), cases[id].type.padEnd(10), size.padEnd(2), 'better best on', helped + '/' + n, '| machine optimal', opt + '/' + n, '| charted ms max', maxMs);
+    }
+  }
+  // The rules, checked directly on one map each.
+  {
+    const o = E.SIZES.survey.M, a = E.TYPES.survey.generate('rule', o), b = E.TYPES.survey.generate('rule', Object.assign({}, o, { mods: ['light'] }));
+    assert(a.sites.every((s, i) => b.sites[i].cost === Math.max(1, s.cost - 1) && b.sites[i].r === s.r && b.sites[i].cls === s.cost), 'light rigs: 1 credit less, minimum 1, same reach');
+    const c = E.TYPES.survey.generate('rule', Object.assign({}, o, { mods: ['overlap'] }));
+    const all = c.sites.map((s, i) => i), once = E.TYPES.survey.value(a, all), half = E.TYPES.survey.value(c, all);
+    const twice = c.deps.reduce((sum, d, i) => sum + (c.cover.filter((cv) => cv.list.includes(i)).length >= 2 ? d.t : 0), 0);
+    assert(twice > 0 && Math.abs(half - once - twice / 2) < 1e-6, 'overlap: ore reached twice pays half again, and only that ore');
+  }
+  {
+    const o = E.SIZES.blockade.L, a = E.TYPES.blockade.generate('rule', o), b = E.TYPES.blockade.generate('rule', Object.assign({}, o, { mods: ['wideband'] }));
+    assert(a.cost.every((cst, i) => b.cost[i] === (a.adj[i].length >= 4 ? Math.max(1, cst - 1) : cst)) && a.adj.some((x) => x.length >= 4), 'wide-band: only hubs cost less');
+  }
+  {
+    const o = E.SIZES.treaty.M, a = E.TYPES.treaty.generate('rule', o), b = E.TYPES.treaty.generate('rule', Object.assign({}, o, { mods: ['tongue'] }));
+    const plan = E.TYPES.treaty.empty(a), miss = Math.max(0, ...a.clauses.filter((cl) => !E.TYPES.treaty.sat(cl, plan)).map((cl) => cl.w));
+    assert(miss > 0 && E.TYPES.treaty.value(b, plan) === E.TYPES.treaty.value(a, plan) + miss, 'silver tongue: the heaviest unmet demand counts as met');
+  }
+  {
+    const b = E.TYPES.engagement.generate('rule', Object.assign({}, E.SIZES.engagement.M, { mods: ['aft'] }));
+    assert(JSON.stringify(b.shield) === JSON.stringify([2, 2, 2, 4]), 'hardened aft: the aft arc blocks double');
+    const ghost = E.TYPES.haul.generate('rule', Object.assign({}, bubble, { mods: ['ghost'] }));
+    assert(ghost.hazard.mult === 1.5 && E.TYPES.haul.generate('rule', bubble).hazard.mult === bubble.hazard.mult, 'ghost hull: the bubble costs 1.5 to cross');
+  }
+  // Deep polish, the engine mod: never worse than polish, never above the charted best, and
+  // it finds something polish cannot on at least one map of some job.
+  let deeper = 0;
+  for (const type of Object.keys(E.TYPES)) {
+    const mod = E.TYPES[type];
+    let gain = 0, maxMs = 0;
+    const n = 15;
+    for (let k = 0; k < n; k++) {
+      const p = mod.generate('dp' + k, E.SIZES[type].M);
+      const start = mod.machine(p).solution;
+      const shallow = mod.evaluate(p, mod.polish(p, start).solution).value;
+      const t0 = Date.now(); const d = E.deepPolish(mod, p, start); maxMs = Math.max(maxMs, Date.now() - t0);
+      const dv = mod.evaluate(p, d.solution);
+      assert(d.ok && dv.valid && !E.better(mod, shallow, dv.value) && !E.better(mod, dv.value, mod.charted(p).value), 'deep polish ' + type + ' #' + k);
+      if (E.better(mod, dv.value, shallow)) gain++;
+    }
+    const blank = mod.generate('dp', E.SIZES[type].M);
+    assert(E.deepPolish(mod, blank, mod.empty(blank)).ok === mod.polish(blank, mod.empty(blank)).ok, 'deep polish ' + type + ' refuses what polish refuses');
+    deeper += gain;
+    console.log('deep polish', type.padEnd(10), 'beats polish on', gain + '/' + n, 'M maps from NAV-7\'s plan | ms max', maxMs);
+  }
+  assert(deeper > 0, 'deep polish finds something polish cannot');
+}

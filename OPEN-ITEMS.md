@@ -264,6 +264,9 @@ Two editions, one source (`node artifact/build.mjs` and `node artifact/build.mjs
       of 30 to 50%. By doctrine at M: Guild 45%, Armada 32%, Inquisition 22%, Market 20%. The
       slowest L fight took the charted best about a third of a second in Node.
       `[open]` Dan to review the new game text (listed in the pull request) like canon.
+    - **Live 2026-10-01:** merged as b92da35 and released in all three editions: home version 7,
+      public version 8, and the site edition, whose served files match that build. The public
+      edition's description on claude.ai still says "four kinds of job".
 32. **2026-09-30: Ship modules are the build-crafting pieces, on every job type.** Dan: the
     "jokers" should be ship modules. They change rules, not just numbers. Each declares a solver
     cost (instance transform, scoring change, or solver change), and NAV-7 and the charted best

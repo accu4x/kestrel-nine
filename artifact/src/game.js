@@ -212,17 +212,27 @@
     } else if (m.type === 'blockade') {
       if (s.includes(i)) { setSol(s.filter((x) => x !== i)); Snd.undo(); }
       else { setSol(s.concat([i])); Snd.place(); if (m.mod.complete(p, m.sol)) Snd.chord(); }
+    } else if (m.type === 'engagement') {
+      aimAt(i);
     }
   }
   function toggleTerm(i) {
     const m = G.m; const a = m.sol.slice(); a[i] = !a[i]; setSol(a); Snd.init(); a[i] ? Snd.place() : Snd.undo();
   }
-  // Engagement plan: one weapon's target in one round, or one shield arc.
-  function setAim(r, w, tgt) {
-    const m = G.m, a = m.sol.slice(); a[r * m.p.block + w] = tgt; setSol(a); Snd.init(); tgt >= 0 ? Snd.place() : Snd.undo();
+  // Engagement plan: [guns, part, part, ...]. A part is in the kill order or out of it.
+  function aimAt(i) {
+    const s = G.m.sol, at = s.indexOf(i, 1);
+    if (at > 0) { setSol(s.filter((x, k) => k !== at)); Snd.undo(); } else { setSol(s.concat([i])); Snd.place(); }
   }
-  function toggleArc(r, arc) {
-    const m = G.m, a = m.sol.slice(), i = r * m.p.block + m.p.W + arc; a[i] = a[i] ? 0 : 1; setSol(a); Snd.init(); a[i] ? Snd.place() : Snd.undo();
+  function moveAim(i, dir) {
+    const s = G.m.sol.slice(), at = s.indexOf(i, 1), to = at + dir;
+    if (at < 1 || to < 1 || to >= s.length) return;
+    [s[at], s[to]] = [s[to], s[at]]; setSol(s); Snd.place();
+  }
+  function setGuns(guns) {
+    const m = G.m;
+    if (guns < 0 || guns > m.p.P) return;
+    setSol([guns].concat(m.sol.slice(1))); Snd.place();
   }
 
   function navSay(line) { G.m.navLog.push(line); if (G.m.navLog.length > 6) G.m.navLog.shift(); }
@@ -476,7 +486,8 @@
     // A plan editor redraws on every change: put the focus back on the control that had it.
     const held = root.contains(document.activeElement) && document.activeElement.id;
     root.replaceChildren(view);
-    const back = held && held !== 'btn-continue' ? document.getElementById(held) : null;
+    const twin = held ? held.replace(/^eg-(add|drop)-/, (all, k) => 'eg-' + (k === 'add' ? 'drop' : 'add') + '-') : '';
+    const back = held && held !== 'btn-continue' ? document.getElementById(held) || document.getElementById(twin) : null;
     if (back) { try { back.focus({ preventScroll: true }); } catch (e) { /* ignore */ } }
     const cont = back ? null : document.getElementById('btn-continue');
     if (cont && document.activeElement && document.activeElement.tagName !== 'INPUT' && document.activeElement.tagName !== 'TEXTAREA') {
@@ -903,38 +914,39 @@
       status ? h('p', { class: 'note' }, status) : null,
       cap.db ? btn('File to the Rumor Net', () => fileLog(ta.value), 'primary') : h('p', { class: 'muted small' }, 'The Rumor Net is not reachable in this view.'));
   }
-  // The fight's plan editor: the enemy's subsystems and firing schedule, then one block per round
-  // with a target for each weapon and a switch for each shield arc.
+  // The fight's plan editor: the guns dial, the kill order, the enemy's parts and schedule, and
+  // the fight as the plan would fly it. Tapping a part on the display does the same as Add.
   function engagementPanel(m) {
     const p = m.p, T = E.TYPES.engagement, X = C.ENGAGEMENT, sim = T.simulate(p, m.sol);
+    const guns = T.guns(m.sol), order = T.order(m.sol);
     const part = (x) => (x.shots ? 'fires ' + x.dmg + ' at ' + T.ARCS[x.arc] + ' in round ' + x.shots.map((sh) => sh.round + 1).join(', ')
       : fill(X.parts[x.kind], x.kind === 'sensor' ? p.tracked : p.seized));
-    const enemy = section(p.enemy, h('ul', { class: 'subs' }, p.subs.map((x) => h('li', {},
-      h('b', {}, x.name), h('span', { class: 'pips', 'aria-label': 'plating ' + x.thr }, '●'.repeat(x.thr)), h('span', { class: 'muted small' }, part(x))))),
+    const dial = section('Guns',
+      h('div', { class: 'row' },
+        btn('\u2212', () => setGuns(guns - 1), '', { id: 'eg-guns-down', 'aria-label': 'Less power to the guns', disabled: guns > 0 ? null : true }),
+        h('div', { class: 'readout', role: 'status' }, h('span', { class: 'rk' }, 'POWER TO GUNS'), h('span', { class: 'rv' }, guns + ' of ' + p.P)),
+        btn('+', () => setGuns(guns + 1), '', { id: 'eg-guns-up', 'aria-label': 'More power to the guns', disabled: guns < p.P ? null : true })),
+      h('p', { class: 'muted small' }, X.dial));
+    const listed = order.length ? h('ol', { class: 'aims' }, order.map((i, k) => h('li', { class: m.advNode === i ? 'adv' : '' },
+      h('b', {}, p.subs[i].name),
+      h('span', { class: 'row' },
+        btn('▲', () => moveAim(i, -1), 'chip', { id: 'eg-up-' + i, 'aria-label': 'Darken ' + p.subs[i].name + ' earlier', disabled: k > 0 ? null : true }),
+        btn('▼', () => moveAim(i, 1), 'chip', { id: 'eg-down-' + i, 'aria-label': 'Darken ' + p.subs[i].name + ' later', disabled: k < order.length - 1 ? null : true }),
+        btn('Remove', () => aimAt(i), 'chip', { id: 'eg-drop-' + i, 'aria-label': 'Remove ' + p.subs[i].name + ' from the kill order' })))))
+      : h('p', { class: 'muted small' }, X.none);
+    const enemy = section(p.enemy, h('ul', { class: 'subs' }, p.subs.map((x, i) => h('li', { class: m.advNode === i ? 'adv' : '' },
+      h('b', {}, x.name), h('span', { class: 'pips', 'aria-label': 'plating ' + x.thr }, '●'.repeat(x.thr)), h('span', { class: 'muted small' }, part(x)),
+      order.includes(i) ? h('span', { class: 'place' }, '#' + (order.indexOf(i) + 1))
+        : btn('Add', () => aimAt(i), 'chip', { id: 'eg-add-' + i, 'aria-label': 'Add ' + x.name + ' to the kill order' })))),
       h('p', { class: 'muted small' }, X.legend.replace('{s}', T.SHIELD)));
-    const rounds = [];
-    for (let r = 0; r < p.R; r++) {
-      const row = sim.rounds[r], base = r * p.block;
-      if (!row) { rounds.push(h('section', { class: 'panel round' }, h('h2', { class: 'eyebrow' }, 'Round ' + (r + 1)), h('p', { class: 'muted small' }, X.early))); continue; }
-      const start = r ? sim.rounds[r - 1].rem : p.subs.map((x) => x.thr);
-      const over = row.used > row.avail;
-      const aims = p.weapons.map((arm, w) => {
-        const id = 'eg-' + r + '-w' + w;
-        const sel = h('select', { id, class: 'field' + (m.advNode === base + w ? ' adv' : '') },
-          h('option', { value: '-1', selected: m.sol[base + w] < 0 ? true : null }, 'Hold'),
-          p.subs.map((x, i) => h('option', { value: String(i), selected: m.sol[base + w] === i ? true : null }, x.name + (start[i] > 0 ? ' (' + start[i] + ' left)' : ' (dark)'))));
-        sel.addEventListener('change', () => setAim(r, w, +sel.value));
-        return [h('label', { for: id }, arm.name + ' · ' + arm.cost + ' pw · ' + arm.dmg + ' dmg'), sel];
-      });
-      const arcs = h('div', { class: 'arcs', role: 'group', 'aria-label': 'Shield arcs, round ' + (r + 1) }, T.ARCS.map((name, a) =>
-        h('button', { id: 'eg-' + r + '-a' + a, class: 'term' + (row.up[a] ? ' on' : '') + (m.advNode === base + p.W + a ? ' adv' : ''), type: 'button', role: 'switch', 'aria-checked': row.up[a] ? 'true' : 'false', onclick: () => toggleArc(r, a) },
-          h('span', { class: 'switch', 'aria-hidden': 'true' }), h('span', {}, name + (row.inc[a] ? ' · ' + row.inc[a] + ' in' : '')))));
-      rounds.push(h('section', { class: 'panel round' + (over ? ' over' : '') },
-        h('h2', { class: 'eyebrow' }, 'Round ' + (r + 1) + ' · ', h('span', { class: over ? 'warn' : '' }, 'power ' + row.used + ' / ' + row.avail), ' · hull \u2212' + row.taken),
-        h('div', { class: 'form' }, aims.flat()), arcs));
-    }
-    const end = [sim.seized ? fill(X.seized, p.seized) : null, sim.tracked ? fill(X.tracked, p.tracked) : null].filter(Boolean).join(' ');
-    return h('div', { class: 'stack' }, enemy, rounds, end ? h('p', { class: 'note' }, end) : null);
+    const line = (row) => [
+      row.fired.length ? 'guns ' + row.fired.map((f) => p.subs[f.tgt].name + ' ' + f.hit + (row.rem[f.tgt] <= 0 ? ' (dark)' : '')).join(', ') : 'guns idle',
+      row.up.some(Boolean) ? 'shields ' + T.ARCS.filter((a, k) => row.up[k]).join(', ') : 'no shields',
+      row.taken ? 'hull \u2212' + row.taken : 'no damage'].join(' · ');
+    const end = [sim.rounds.length < p.R ? X.early : null, sim.seized ? fill(X.seized, p.seized) : null, sim.tracked ? fill(X.tracked, p.tracked) : null].filter(Boolean).join(' ');
+    const log = section('The fight, as planned', h('ol', { class: 'rounds' }, sim.rounds.map((row) => h('li', {}, line(row)))),
+      end ? h('p', { class: 'note' }, end) : null);
+    return h('div', { class: 'stack' }, dial, section('Kill order', listed), enemy, log);
   }
   function treatyPanel(m) {
     const p = m.p, T = E.TYPES.treaty;
@@ -1029,6 +1041,7 @@
   function nodesOf(m) {
     if (m.type === 'haul' || m.type === 'blockade') return m.p.pts;
     if (m.type === 'survey') return m.p.sites;
+    if (m.type === 'engagement') return engagementSpots(m.p);
     return [];
   }
   function hitTest(m, x, y) {
@@ -1239,15 +1252,16 @@
   const ARC_DIR = [0, -Math.PI / 2, Math.PI / 2, Math.PI]; // fore faces the enemy, port is up-screen
   const SUB_SIDES = { mount: 3, sensor: 8, engine: 4, grapple: 5, drain: 5 };
   const BEAT = 1.5; // seconds a round stays on screen in a replay
-  function engagementSpots(p, foe) {
+  const ME = { x: 250, y: 320 }, FOE = { x: 730, y: 320 };
+  function engagementSpots(p) {
     const mounts = p.subs.filter((x) => x.shots).length;
     let k = 0;
-    return p.subs.map((x) => (x.shots ? { x: foe.x - 100, y: foe.y + (k++ - (mounts - 1) / 2) * 62 }
-      : x.kind === 'sensor' ? { x: foe.x + 20, y: foe.y - 128 } : x.kind === 'engine' ? { x: foe.x + 130, y: foe.y } : { x: foe.x + 20, y: foe.y + 128 }));
+    return p.subs.map((x) => (x.shots ? { x: FOE.x - 100, y: FOE.y + (k++ - (mounts - 1) / 2) * 62 }
+      : x.kind === 'sensor' ? { x: FOE.x + 20, y: FOE.y - 128 } : x.kind === 'engine' ? { x: FOE.x + 130, y: FOE.y } : { x: FOE.x + 20, y: FOE.y + 128 }));
   }
   function drawEngagement(ctx, p, t, layers, interactive) {
-    const T = E.TYPES.engagement, me = { x: 250, y: 320 }, foe = { x: 730, y: 320 }, AR = 62;
-    const spots = engagementSpots(p, foe);
+    const T = E.TYPES.engagement, me = ME, foe = FOE, AR = 62;
+    const spots = engagementSpots(p);
     const arcAt = (a, rad) => ({ x: me.x + Math.cos(ARC_DIR[a]) * rad, y: me.y + Math.sin(ARC_DIR[a]) * rad });
     // which plan, and which moment of it
     let L = layers[0], beat = -1;
@@ -1259,7 +1273,7 @@
       while (at >= spans[i]) at -= spans[i++];
       L = reel[i]; beat = Math.floor(at);
     }
-    const sim = T.simulate(p, L.sol), n = sim.rounds.length;
+    const sim = T.simulate(p, L.sol), n = sim.rounds.length, order = T.order(L.sol);
     const showing = beat >= 1 && beat <= n ? sim.rounds[beat - 1] : null; // the round on screen, in a replay
     const before = (r) => (r ? sim.rounds[r - 1].rem : p.subs.map((x) => x.thr));
     const rem = beat === 0 ? before(0) : showing ? showing.rem : before(n);
@@ -1277,17 +1291,20 @@
         ctx.save(); ctx.setLineDash([5, 6]); R.line(ctx, spots[i].x - 14, spots[i].y, to.x, to.y, COL.inq, showing ? 2 : 1.1, showing ? 0.95 : 0.4); ctx.restore();
         if (showing) R.vtext(ctx, (blocked ? 'BLOCKED · ' : '') + x.dmg, (spots[i].x + to.x) / 2, (spots[i].y + to.y) / 2 - 14, 8, COL.inq, 'center');
       }
-      if (!showing) R.vtext(ctx, live.length ? 'R' + live.map((sh) => sh.round + 1).join(' ') + ' · ' + x.dmg : 'SILENCED', spots[i].x - 22, spots[i].y - 4, 7, live.length ? COL.inq : COL.muted, 'right', 0.95);
+      if (!showing) R.vtext(ctx, live.length ? 'R' + live.map((sh) => sh.round + 1).join(' ') + ' · ' + x.dmg : 'SILENCED', spots[i].x - 26, spots[i].y - 4, 7, live.length ? COL.inq : COL.muted, 'right', 0.95);
     });
     // your fire this round, in a replay
-    if (showing) for (const f of showing.fired) R.line(ctx, me.x + 26, me.y, spots[f.tgt].x, spots[f.tgt].y, L.color, 2, f.hit ? 0.95 : 0.3);
-    // subsystems
+    if (showing) for (const f of showing.fired) R.line(ctx, me.x + 26, me.y, spots[f.tgt].x, spots[f.tgt].y, L.color, 2, 0.95);
+    // subsystems, with their place in the kill order
     p.subs.forEach((x, i) => {
-      const q = spots[i], dark = rem[i] <= 0;
+      const q = spots[i], dark = rem[i] <= 0, place = order.indexOf(i);
       R.poly(ctx, q.x, q.y, 13, SUB_SIDES[x.kind], x.shots ? Math.PI : t * 0.3, dark ? COL.dim : COL.text, 1.6, dark ? 0.8 : 1);
       R.vtext(ctx, x.name, q.x, q.y + 20, 7, dark ? COL.dim : COL.muted, 'center', 0.95);
       const went = sim.rounds.findIndex((row) => row.rem[i] <= 0);
-      R.vtext(ctx, dark ? (beat < 0 && went >= 0 ? 'DARK R' + (went + 1) : 'DARK') : String(rem[i]), q.x + 20, q.y - 16, 8, dark ? L.color : COL.nav, 'left', 0.95);
+      R.vtext(ctx, dark ? (beat < 0 && went >= 0 ? 'DARK R' + (went + 1) : 'DARK') : String(rem[i]), q.x + 22, q.y - 16, 8, dark ? L.color : COL.nav, 'left', 0.95);
+      if (beat < 0 && place >= 0) { R.circle(ctx, q.x, q.y, 19, L.color, 1.4, 0.9); R.vtext(ctx, String(place + 1), q.x + 22, q.y + 2, 10, L.color, 'left'); }
+      if (interactive && G.hover === i) R.circle(ctx, q.x, q.y, 23, L.color, 1, 0.6);
+      if (interactive && G.m.advNode === i) R.circle(ctx, q.x, q.y, 25 + Math.sin(t * 6) * 4, COL.nav, 1.6, 0.9);
     });
     // your ship and its arcs
     R.ship(ctx, me.x, me.y, 0, L.color, !!showing, 2.4);
@@ -1299,15 +1316,16 @@
       const q = arcAt(a, AR + 30);
       R.vtext(ctx, name + (beat < 0 && count ? ' ' + count + '/' + n : ''), q.x, q.y - 4, 7, up ? L.color : COL.muted, a === 0 ? 'left' : a === 3 ? 'right' : 'center', 0.9);
     });
-    // the replay's caption
+    // captions: the replay's moment, or the plan's dial
     if (beat >= 0) {
       const taken = sim.rounds.slice(0, Math.min(beat, n)).reduce((a, row) => a + row.taken, 0);
       const done = beat > n;
       const cap = done ? 'JUMP' + (sim.seized ? ' · SEIZED' : '') + (sim.tracked ? ' · TRACKED' : '') : beat === 0 ? 'CONTACT' : 'ROUND ' + beat + ' OF ' + n;
       R.vtext(ctx, L.name + ' · ' + cap, 500, 70, 11, L.color, 'center');
       R.vtext(ctx, 'HULL ' + (done ? sim.value : p.hull - taken), me.x, me.y + AR + 60, 10, L.color, 'center');
-    } else if (interactive && (sim.tracked || sim.seized)) {
-      R.vtext(ctx, sim.seized ? 'SEIZED AT THE JUMP' : 'TRACKED AT THE JUMP', foe.x + 30, foe.y + 190, 8, COL.inq, 'center', 0.9);
+    } else {
+      R.vtext(ctx, 'GUNS ' + T.guns(L.sol) + '/' + p.P, me.x, me.y + AR + 60, 9, L.color, 'center', 0.9);
+      if (interactive && (sim.tracked || sim.seized)) R.vtext(ctx, sim.seized ? 'SEIZED AT THE JUMP' : 'TRACKED AT THE JUMP', foe.x + 30, foe.y + 190, 8, COL.inq, 'center', 0.9);
     }
   }
 

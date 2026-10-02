@@ -37,9 +37,11 @@ light on story and endlessly replayable. No pay-to-win and no loot boxes.
 
 ## 2. Engagement (job type 5)
 
-`[built 2026-10-01 as phase A. The build departs from this section in five places, each listed
-with its reason in OPEN-ITEMS item 31: the score, the firing order, the special subsystems,
-NAV-7's view of the grapple, and the numbers.]`
+`[built 2026-10-01 as phase A, then simplified the same day: Dan found a target for every weapon
+in every round too many decisions, so a plan is now a kill order and one guns dial, with shields
+automatic. The rules below about rounds, subsystems, shown intent, engines, sensors and doctrines
+stand; "Your ship", "A plan" and the engine interface do not. OPEN-ITEMS item 31 lists every
+departure with its reason.]`
 
 ### Fiction
 

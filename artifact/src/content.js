@@ -306,9 +306,9 @@
     },
     engagement: {
       label: 'ENGAGEMENT', code: 'ENGA', verb: 'Battle plan',
-      how: 'Plan every round before the fight. Aim each weapon at an enemy subsystem or hold it, and raise shield arcs; weapons and shields share the reactor. A subsystem goes dark when its plating is spent, and a mount must be dark before its round to cancel that shot. You disable. You never destroy.',
-      solo: 'Read their firing schedule. Decide what to darken and what to block.',
-      centaur: 'File a plan within the reactor, then POLISH to let the engine try single changes.',
+      how: 'Tap the enemy parts in the order you want them dark, and set how much of the reactor feeds the guns. Each round the guns work down your order, a point of plating for a point of power, and whatever is left raises the shield arcs that block the most. A mount must be dark before its round to cancel that shot. You disable. You never destroy.',
+      solo: 'Read their firing schedule. Decide what to darken first, and what to leave alone.',
+      centaur: 'Name your targets, then POLISH to let the engine reorder them and trim the guns.',
     },
   };
 
@@ -326,7 +326,9 @@
       grapple: 'running at the jump: seized, \u2212{x} hull',
       drain: 'while it runs: reactor \u22121 each round',
     },
-    legend: 'Dots are plating. A raised arc blocks {s} of the fire on that side, each round.',
+    legend: 'Dots are plating: a point of gun power removes one. A raised arc blocks {s} of the fire on that side, each round. The guns skip a part once darkening it would change nothing.',
+    dial: 'Each round the guns may take this much of the reactor. Whatever they do not use raises shields.',
+    none: 'No targets yet. Tap a part on the display, or use Add below. With no targets the whole reactor holds shields.',
     early: 'Their engines are dark. You jump before this round.',
     tracked: 'Sensors still up at the jump: tracked, \u2212{x} hull.',
     seized: 'Grapple still running at the jump: seized, \u2212{x} hull.',

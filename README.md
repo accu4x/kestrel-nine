@@ -16,9 +16,10 @@ Five kinds of job, each a genuinely hard planning problem underneath:
 - **Survey:** place drill rigs within a credit budget to cover the richest ore.
 - **Blockade:** jam every lane with the least power so Inquisition cutters lose the trail.
 - **Treaty:** choose treaty terms that win the most weighted support at a divided table.
-- **Engagement:** hold off a hostile ship until your drive spools, splitting reactor power
-  between weapons and shields. Every enemy shot is shown before you commit. You disable; you
-  never destroy.
+- **Engagement:** hold off a hostile ship until your drive spools. Pick the order in which to
+  darken its guns, sensors and engines, and how much of the reactor feeds your own guns; the
+  rest holds shields. Every enemy shot is shown before you commit. You disable; you never
+  destroy.
 
 Modes: a six-mission campaign (*Cold Start*), a Daily Seed shared by every pilot, and an Arcade
 with shareable seed codes. The Records keep a **Centaur Index**: how often pilot plus engine

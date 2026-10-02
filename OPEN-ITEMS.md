@@ -80,6 +80,22 @@ Two editions, one source (`node artifact/build.mjs` and `node artifact/build.mjs
     > by you alone, and by both of you together. Play the six-mission campaign, a daily seed or
     > the arcade. Your Records stay on this device, and you can share a result card when you beat
     > the machine.
+
+    `[amended 2026-10-01: Engagement (item 31) makes five kinds of job. Two edits to the text
+    above and nothing else: "four" becomes "five", and the list gains the fight as its last
+    clause. Drafted by Claude for Dan's approval; merging this entry is the approval. It is set on
+    the public edition at its next republish, and still never on the home edition. New text (879
+    characters):]`
+    > Kestrel Nine is a retro vector space game of minds and machines. Three thousand years from
+    > now, a law bans thinking machines, and the Augmented (human minds living in machine frames)
+    > have been outlawed since Cycle 31. You fly as one of them, hiding as a licensed pilot with
+    > NAV-7, a Consortium navigation engine, at your side. Evade the Galactic Inquisition and
+    > resist the Purge across five kinds of job: haul cargo to every port and back, place drill
+    > rigs on the richest deposits, jam every lane so an Inquisition wing can't track a courier,
+    > broker treaty terms between the factions, and hold off a hostile ship until your drive
+    > spools. Every job is flown three ways: by NAV-7 alone, by you alone, and by both of you
+    > together. Play the six-mission campaign, a daily seed or the arcade. Your Records stay on
+    > this device, and you can share a result card when you beat the machine.
 21. **2026-09-28: What outward copy calls NAV-7.** Question: the draft description called NAV-7
     "the ship computer", while the game and lore call it a Consortium navigation engine ("Engines
     must be glass"). **Answer (Dan): "Consortium navigation engine".** Canon is unchanged; this

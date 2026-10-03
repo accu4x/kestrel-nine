@@ -253,6 +253,8 @@ def main() -> int:
         # The Arcade refit picker: a module joins the loadout, the patron renames it, the ship
         # carries three, and the loadout rides in the seed code. A linked code with a loadout works too.
         click_text(page, "Arcade")
+        page.select_option("#ar-type", "haul")
+        check(page.locator("#mod-ghost").count() == 1, "Ghost Hull is offered for a haul")
         page.select_option("#ar-type", "survey")
         consortium = page.locator("#mod-light b").inner_text()
         page.focus("#ar-patron")  # a player is on the select when they change it; select_option alone does not focus it

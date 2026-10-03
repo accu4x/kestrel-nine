@@ -307,12 +307,10 @@ Two editions, one source (`node artifact/build.mjs` and `node artifact/build.mjs
         The design note had a different widening per job (3-opt for Haul, pair moves elsewhere).
       - *Not built here:* hull classes. They set slots, reactor and pay, which belong to seasons
         (phase C); the Arcade ship is the *Second Wind*, a Courier with three slots.
-      - `[open]` **Ghost Hull has nothing to act on in the Arcade.** Arcade hauls have no sensor
-        bubble (only campaign missions 4 and 6 do), so the picker does not offer it. It is built
-        and tested against mission 4's map. Dan to choose: give Arcade hauls a bubble at some
-        size, which changes what existing seeds of that size mean, or leave it for seasons.
-      - `[open]` **Where the module names live in `lore/`.** Item 37 says they enter the lore
-        files with phase B. Canon is Dan's to place: say which file, and I will add them.
+      - *Ghost Hull in the Arcade:* Arcade hauls had no sensor bubble for it to act on. Dan:
+        "try to make ghost hull fit in current capabilities". A refit haul now runs near a
+        patrol, so its map carries a sensor bubble; plain arcade maps are unchanged, and so is
+        every existing seed.
       - `[open]` Light Rigs makes the charted best on a large Survey slower: about half a second
         in Node at worst, where the plain map takes about a tenth. Not timed on an iPad.
 33. **2026-09-30: Ship classes with strengths and weaknesses.** Dan's idea. Six classes

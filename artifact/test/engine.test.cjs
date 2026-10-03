@@ -81,7 +81,7 @@ for (const type of Object.keys(E.TYPES)) {
   // Ghost Hull needs a bubble, which only campaign maps have: use mission 4's.
   const bubble = C.CAMPAIGN.find((c) => c.id === 'c4').params;
   const cases = {
-    ghost: { type: 'haul', sizes: { C4: bubble } },
+    ghost: { type: 'haul', sizes: Object.assign({ C4: bubble }, ...['S', 'M', 'L'].map((z) => ({ [z]: Object.assign({}, E.SIZES.haul[z], { hazard: E.REFIT_HAZARD[z] }) }))) },
     light: { type: 'survey' }, overlap: { type: 'survey' }, wideband: { type: 'blockade' }, tongue: { type: 'treaty' }, aft: { type: 'engagement' },
   };
   for (const id of Object.keys(cases)) {

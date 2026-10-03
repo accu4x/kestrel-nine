@@ -174,24 +174,24 @@
   const modNames = (mods) => mods.map(modName).join(', ');
   const hasMod = (m, id) => !!(m && m.mods && m.mods.includes(id));
   const advCap = (m) => 3 + (hasMod(m, 'second') ? 1 : 0);
-  // Can this module change anything on this job? Ghost Hull needs a sensor bubble to act on.
-  function usable(id, type, params) {
+  // Does this module change anything on this job? (A refit haul always has a bubble for Ghost Hull.)
+  function usable(id, type) {
     const def = E.MODULES[id];
-    if (!def || (def.job !== type && def.job !== 'all')) return false;
-    return id !== 'ghost' || !!params.hazard;
+    return !!def && (def.job === type || def.job === 'all');
   }
   // A loadout as it is keyed everywhere: known modules that fit the job, no repeats, sorted, at
   // most what the ship carries. Returns null for anything else.
   function loadout(type, size, ids) {
     const mods = [...new Set(ids)].sort();
-    const ok = mods.length === ids.length && mods.length <= E.SLOTS && mods.every((id) => usable(id, type, E.SIZES[type][size]));
+    const ok = mods.length === ids.length && mods.length <= E.SLOTS && mods.every((id) => usable(id, type));
     return ok ? mods : null;
   }
   function arcadeSpec(type, size, code, mods) {
     const fit = mods || [];
     const tail = fit.length ? '+' + fit.join('.') : '';
     const full = CODE(type) + '-' + size + '-' + code + tail.toUpperCase();
-    return { kind: 'arcade', type, seed: 'arcade-' + code, params: fit.length ? Object.assign({}, E.SIZES[type][size], { mods: fit }) : E.SIZES[type][size],
+    const refit = type === 'haul' ? { mods: fit, hazard: E.REFIT_HAZARD[size] } : { mods: fit };
+    return { kind: 'arcade', type, seed: 'arcade-' + code, params: fit.length ? Object.assign({}, E.SIZES[type][size], refit) : E.SIZES[type][size],
       seedKey: 'a-' + type + '-' + size + '-' + code + tail, mods: fit,
       title: 'Arcade ' + C.TYPE_INFO[type].label.toLowerCase() + ' ' + size + (fit.length ? ' · refit' : ''), place: 'Seed ' + full,
       objective: objectiveFor(type), contact: 'winter', code: full };
@@ -722,8 +722,8 @@
     },
 
     arcade() {
-      const A = G.arcade, params = E.SIZES[A.type][A.size];
-      const options = Object.keys(E.MODULES).filter((id) => usable(id, A.type, params));
+      const A = G.arcade;
+      const options = Object.keys(E.MODULES).filter((id) => usable(id, A.type));
       A.mods = A.mods.filter((id) => options.includes(id));
       const pick = (id, key, list, labelOf) => {
         const sel = h('select', { id, class: 'field' }, list.map((v) => h('option', { value: v, selected: v === (key === 'patron' ? settings.patron : A[key]) ? true : null }, labelOf(v))));
@@ -754,7 +754,7 @@
             h('label', { for: 'ar-size' }, 'Size'), sizeSel)),
         section('Refit · ' + A.mods.length + ' of ' + E.SLOTS,
           h('p', { class: 'muted small' }, C.REFIT.intro),
-          mods.length ? h('div', { class: 'terms', role: 'group', 'aria-label': 'Modules' }, mods) : h('p', { class: 'muted small' }, C.REFIT.none),
+          h('div', { class: 'terms', role: 'group', 'aria-label': 'Modules' }, mods),
           h('div', { class: 'form' }, h('label', { for: 'ar-patron' }, 'Patron'), patronSel),
           h('p', { class: 'muted small' }, C.REFIT.patron)),
         h('div', { class: 'row' }, btn('Generate map ▸', () => {
@@ -1061,6 +1061,7 @@
     G.screen = 'brief';
     const intro = [{ who: 'sys', text: spec.place.toUpperCase() }, { who: 'nav', text: 'Job loaded: ' + spec.objective + ' This engine will stay unlinked until your solo plan is filed.' }];
     if (spec.mods && spec.mods.length) intro.push({ who: 'nav', text: fill(C.REFIT.fitted, modNames(spec.mods)) });
+    if (spec.mods && spec.mods.length && spec.type === 'haul') intro.push({ who: 'nav', text: C.REFIT.bubble });
     if (spec.type === 'engagement') {
       const p = G.m.p, rule = C.ENGAGEMENT.rules[p.doctrine];
       intro.splice(1, 0, { who: 'sys', text: fill(C.ENGAGEMENT.contact, p.enemy).replace('{r}', p.R) });

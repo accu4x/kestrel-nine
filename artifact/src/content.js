@@ -338,8 +338,8 @@
     intro: 'The Second Wind carries three modules. A module changes a rule: for you, for NAV-7 and for the charted best alike.',
     patron: 'A patron sets the names. The rules are the same under all four.',
     contraband: 'Lantern contraband',
-    none: 'No module in the catalogue changes this job yet.',
     fitted: 'Refit confirmed: {x}.',
+    bubble: 'This engine notes a patrol on the refit route. A sensor bubble lies across the map.',
     index: 'The Centaur Index counts runs flown without modules. Refit runs are listed under My runs.',
   };
 

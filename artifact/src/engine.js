@@ -1016,7 +1016,11 @@
     },
   };
 
-  const api = { RIG, makeRng, hashSeed, TYPES, SIZES, MODULES, SLOTS, deepPolish, pctOf, better, W, H, ORE, BIRDS, DELEGATES, round1 };
+  // A refit haul in the Arcade runs near a patrol: its map carries a sensor bubble, so Ghost Hull
+  // has something to soften. Plain arcade maps have none, so their seeds are unchanged.
+  const REFIT_HAZARD = { S: { r: 130, mult: 2.4 }, M: { r: 150, mult: 2.4 }, L: { r: 160, mult: 2.4 } };
+
+  const api = { RIG, makeRng, hashSeed, TYPES, SIZES, REFIT_HAZARD, MODULES, SLOTS, deepPolish, pctOf, better, W, H, ORE, BIRDS, DELEGATES, round1 };
   root.K9Engine = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })(typeof window !== 'undefined' ? window : globalThis);

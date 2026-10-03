@@ -250,6 +250,31 @@ def main() -> int:
         check(page.locator("#btn-pause").get_attribute("aria-pressed") == "true", "the debrief replay can be paused")
         page.click("#btn-home")
 
+        # The Arcade refit picker: a module joins the loadout, the patron renames it, the ship
+        # carries three, and the loadout rides in the seed code. A linked code with a loadout works too.
+        click_text(page, "Arcade")
+        page.select_option("#ar-type", "survey")
+        consortium = page.locator("#mod-light b").inner_text()
+        page.focus("#ar-patron")  # a player is on the select when they change it; select_option alone does not focus it
+        page.select_option("#ar-patron", "union")
+        check(page.locator("#mod-light b").inner_text() != consortium and page.evaluate("document.activeElement.id") == "ar-patron", "a patron renames the modules")
+        for mod_id in ("light", "overlap", "second"):
+            page.click("#mod-" + mod_id)
+        check(page.locator("#mod-deep").is_disabled() and page.locator("#mod-light").get_attribute("aria-checked") == "true", "the ship carries three modules and no more")
+        page.click("#btn-generate")
+        run_dialog_to(page, "Begin solo run")
+        check("+LIGHT.OVERLAP.SECOND" in page.locator("#console .mhead").inner_text() and any(s.startswith("Refit confirmed") for s in page.locator("#console .dialog .said").all_inner_texts()), "the briefing carries the loadout and its seed code")
+        click_text(page, "Begin solo run")
+        click_text(page, "Skip to centaur run")
+        click_text(page, "Start fresh")
+        check("(4)" in page.locator("#console button", has_text="Advisory").inner_text() and page.locator("#console .refit li").count() == 3, "the fourth advisory is there, and the refit is listed")
+        page.goto(base + "?c=TREATY-S-7F3A%2BTONGUE")
+        page.wait_for_selector("#console h1")
+        check(heading(page) == "Arcade treaty S · refit", "a challenge link carries its loadout")
+        page.goto(base + "?c=TREATY-S-7F3A%2BLIGHT")
+        page.wait_for_selector("#console button")
+        check(page.locator("#console button", has_text="Campaign: Cold Start").count() == 1, "a loadout that does not fit the job is ignored")
+
         # A fresh profile that skips the prologue lands in mission 1 and never sees it again.
         ctx2, skipper = fresh_profile()
         skipper.goto(base)

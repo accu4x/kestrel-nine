@@ -312,6 +312,37 @@
     },
   };
 
+  // Ship modules (OPEN-ITEMS items 32 and 37). A module's rule is the same under every patron; its
+  // name is the patron's. Engine mods are Lantern contraband and keep one name everywhere.
+  const PATRONS = { consortium: 'The Consortium', academia: 'Academia', armada: 'Salem’s Armada', union: 'The Miners’ Union' };
+  const MODULES = {
+    ghost: { rule: 'Sensor bubbles cost ×1.5 to cross, in place of their usual toll.',
+      names: { consortium: 'Customs Hedge', academia: 'Hades Cowl', armada: 'Ghostskin', union: 'Dust Skirt' } },
+    light: { rule: 'Every rig costs 1 credit less, to a minimum of 1.',
+      names: { consortium: 'Volume Rebate', academia: 'Ceres Rigs', armada: 'Lifted Rigs', union: 'Jackleg Rigs' } },
+    overlap: { rule: 'Ore that two or more rigs reach pays half again.',
+      names: { consortium: 'Compound Yield', academia: 'Gemini Bore', armada: 'Double-Dip Drill', union: 'Double Stope' } },
+    wideband: { rule: 'A jammer at a station with four or more lanes draws 1 kc less, to a minimum of 1.',
+      names: { consortium: 'Hub Arbitrage', academia: 'Echo Choir', armada: 'Crossroads Howler', union: 'Crosscut Charge' } },
+    tongue: { rule: 'Your single heaviest unmet demand counts as met.',
+      names: { consortium: 'Grace Period', academia: 'Peitho Seal', armada: 'Sweet Talk', union: 'Grace Shift' } },
+    aft: { rule: 'The aft shield arc blocks double.',
+      names: { consortium: 'Exit Insurance', academia: 'Aegis Aft', armada: 'Tailguard', union: 'Tailings Plate' } },
+    second: { rule: 'A fourth advisory.', contraband: true, name: 'Second Lantern',
+      flavour: 'One more light on the console, from an engine that should not have one.' },
+    deep: { rule: 'Polish looks two changes ahead.', contraband: true, name: 'Cracked Glass',
+      flavour: 'Engines must be glass. This one has a flaw you can see through.' },
+  };
+  const moduleName = (id, patron) => MODULES[id].name || MODULES[id].names[patron] || MODULES[id].names.consortium;
+  const REFIT = {
+    intro: 'The Second Wind carries three modules. A module changes a rule: for you, for NAV-7 and for the charted best alike.',
+    patron: 'A patron sets the names. The rules are the same under all four.',
+    contraband: 'Lantern contraband',
+    none: 'No module in the catalogue changes this job yet.',
+    fitted: 'Refit confirmed: {x}.',
+    index: 'The Centaur Index counts runs flown without modules. Refit runs are listed under My runs.',
+  };
+
   // Engagement: the lines around a fight. {x}, {r} and {s} are filled in by the game.
   const ENGAGEMENT = {
     contact: 'CONTACT · {x} · DRIVE SPOOLS IN {r} ROUNDS',
@@ -355,7 +386,7 @@
     { cycle: 77.4, title: "A pilot docks at Bay 7", body: "A new Augmented pilot, a chip-born mind woken by Professor Laplace, docks at Relay Station with a sealed crate and a tag that reads ASK FOR WINTER. What happens next is being written by the pilots of the reach." },
   ];
 
-  const api = { PEOPLE, NAV, PROLOGUE, CAMPAIGN, TYPE_INFO, ENGAGEMENT, TREATY_C5, SHARE_URL, CANON };
+  const api = { PEOPLE, NAV, PROLOGUE, CAMPAIGN, TYPE_INFO, ENGAGEMENT, PATRONS, MODULES, moduleName, REFIT, TREATY_C5, SHARE_URL, CANON };
   root.K9Content = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })(typeof window !== 'undefined' ? window : globalThis);

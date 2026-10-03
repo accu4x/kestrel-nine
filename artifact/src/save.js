@@ -50,15 +50,19 @@
     if (typeof r.seedKey !== 'string') return null;
     const keyOk = r.kind === 'campaign' ? own(schema.campaigns).includes(r.seedKey) && schema.campaigns[r.seedKey] === r.type
       : r.kind === 'daily' ? new RegExp('^d-\\d{4}-\\d{2}-\\d{2}-' + r.type + '$').test(r.seedKey)
-        : new RegExp('^a-' + r.type + '-[SML]-[A-Z0-9]{1,8}$').test(r.seedKey);
+        : new RegExp('^a-' + r.type + '-[SML]-[A-Z0-9]{1,8}(\\+[a-z]+(\\.[a-z]+)*)?$').test(r.seedKey);
     if (!keyOk) return null;
+    // A refit run's key ends in its loadout: known modules that fit the job, sorted, no repeats.
+    const fit = r.kind === 'arcade' && r.seedKey.includes('+') ? r.seedKey.split('+')[1].split('.') : [];
+    const jobs = schema.modules || {};
+    if (fit.length > (schema.slots || 0) || !fit.every((id, i) => own(jobs).includes(id) && (jobs[id] === r.type || jobs[id] === 'all') && (i === 0 || fit[i - 1] < id))) return null;
     const title = schema.titleOf(r.kind, r.type, r.seedKey);
     if (typeof title !== 'string') return null;
     if (typeof r.day !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(r.day)) return null;
     if (!num(r.machine, 0, MAX_VALUE) || !numOrNull(r.solo, 0, MAX_VALUE) || !num(r.centaur, 0, MAX_VALUE) || !num(r.best, 0, MAX_VALUE)) return null;
     if (!num(r.machinePct, 0, 100) || !numOrNull(r.soloPct, 0, 100) || !num(r.centaurPct, 0, 100) || !num(r.bestPct, 0, 100)) return null;
     if (typeof r.bestProven !== 'boolean' || typeof r.centaurWin !== 'boolean') return null;
-    if (!int(r.polishes, 0, 10000) || !int(r.advisoriesUsed, 0, 3)) return null;
+    if (!int(r.polishes, 0, 10000) || !int(r.advisoriesUsed, 0, fit.includes('second') ? 4 : 3)) return null;
     if (!int(r.ts, MIN_TS, now + 2 * 86400000)) return null;
     return {
       seedKey: r.seedKey, kind: r.kind, type: r.type, title, day: r.day, dir: r.dir,
@@ -69,6 +73,7 @@
   }
 
   // schema: { campaigns: { c1: 'haul', ... }, typeDirs: { haul: 'min', ... },
+  //          modules: { light: 'survey', second: 'all', ... }, slots: 3,
   //          titleOf(kind, type, seedKey) -> the game's own display title for a validated run }
   function parseSave(text, schema, now) {
     const fail = (error) => ({ ok: false, error });

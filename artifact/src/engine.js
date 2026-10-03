@@ -82,6 +82,25 @@
   }
 
   const round1 = (x) => Math.round(x * 10) / 10;
+
+  // Ship modules (OPEN-ITEMS item 32). A module changes a rule, and it is declared by what that
+  // costs the solvers: 'map' edits the generated map, so every solver runs unchanged; 'score'
+  // changes how a plan is scored, on a job whose charted best tries every plan anyway; 'engine'
+  // changes the partnership (advisories, polish) and leaves the puzzle alone. NAV-7, polish and
+  // the charted best always play under the pilot's modules. Names and rule text are in content.js.
+  const MODULES = {
+    ghost: { job: 'haul', kind: 'map' },        // sensor bubbles cost less
+    light: { job: 'survey', kind: 'map' },      // every rig costs 1 less
+    overlap: { job: 'survey', kind: 'score' },  // ore reached twice pays half again
+    wideband: { job: 'blockade', kind: 'map' }, // jammers at hubs cost 1 less
+    tongue: { job: 'treaty', kind: 'score' },   // the heaviest unmet demand counts as met
+    aft: { job: 'engagement', kind: 'map' },    // the aft arc blocks double
+    second: { job: 'all', kind: 'engine' },     // a fourth advisory
+    deep: { job: 'all', kind: 'engine' },       // polish looks two changes ahead
+  };
+  const SLOTS = 3; // the Second Wind carries three
+  const fitted = (o, id) => !!(o && o.mods && o.mods.includes(id));
+  const modsOf = (o) => ((o && o.mods) || []).slice();
   function fmtNum(x) { return x.toLocaleString('en-US'); }
 
   // =====================================================================
@@ -108,6 +127,7 @@
         }
         hazard.mult = o.hazard.mult || 2.4;
         hazard.label = o.hazard.label || 'SENSOR BUBBLE';
+        if (fitted(o, 'ghost')) hazard.mult = Math.min(hazard.mult, 1.5);
       }
       const D = [];
       for (let i = 0; i < n; i++) {
@@ -119,7 +139,7 @@
           D[i].push(d / 100);
         }
       }
-      return { type: 'haul', seed, n, pts, names, hazard, D };
+      return { type: 'haul', seed, n, pts, names, hazard, D, mods: modsOf(o) };
     },
     empty() { return [0]; },
     complete(p, s) { return s.length === p.n; },
@@ -271,6 +291,17 @@
       return { solution: best, value: bv, work: 0, proven: false };
     },
     charted(p) { return Haul.exact(p) || Haul.heuristicBest(p); },
+    // Every finished route one change away: a stretch reversed, or one port moved.
+    moves(p, s) {
+      const out = [], n = s.length;
+      if (!Haul.complete(p, s)) return out;
+      for (let i = 1; i < n - 1; i++) for (let j = i + 1; j < n; j++) out.push(s.slice(0, i).concat(s.slice(i, j + 1).reverse(), s.slice(j + 1)));
+      for (let i = 1; i < n; i++) {
+        const rest = s.slice(0, i).concat(s.slice(i + 1));
+        for (let k = 1; k <= rest.length; k++) if (k !== i) out.push(rest.slice(0, k).concat([s[i]], rest.slice(k)));
+      }
+      return out;
+    },
     format(v) { return round1(v).toFixed(1) + ' lh'; },
     describe(p, s) {
       return s.map((i) => p.names[i]).concat(Haul.complete(p, s) ? [p.names[0]] : []).join(' > ');
@@ -321,7 +352,7 @@
         if (x < 50 || x > W - 50 || y < 50 || y > H - 50) continue;
         const r = rng();
         const cost = r < 0.45 ? 1 : r < 0.8 ? 2 : 3;
-        const pt = { x: Math.round(x), y: Math.round(y), cost, r: RIG[cost].r };
+        const pt = { x: Math.round(x), y: Math.round(y), cost, cls: cost, r: RIG[cost].r };
         if (sites.some((s) => dist(s, pt) < 58)) continue;
         sites.push(pt);
       }
@@ -332,17 +363,26 @@
         return { bits, list };
       });
       const names = sites.map((s, i) => 'ROCK ' + String.fromCharCode(65 + (i % 26)) + (i >= 26 ? '2' : ''));
-      return { type: 'survey', seed, m, B, sites, deps, cover, words, names };
+      // Light Rigs: a rig keeps its class and reach (`cls`) and costs 1 less.
+      if (fitted(o, 'light')) for (const site of sites) site.cost = Math.max(1, site.cost - 1);
+      return { type: 'survey', seed, m, B, sites, deps, cover, words, names, overlap: fitted(o, 'overlap'), mods: modsOf(o) };
     },
     empty() { return []; },
     spent(p, s) { return s.reduce((a, i) => a + p.sites[i].cost, 0); },
     complete(p, s) { return s.length > 0 && Survey.spent(p, s) <= p.B; },
-    value(p, s) {
-      const acc = new Uint32Array(p.words);
-      for (const i of s) { const b = p.cover[i].bits; for (let w = 0; w < p.words; w++) acc[w] |= b[w]; }
+    // Ore counts once. With Overlap Refinery, ore that two or more rigs reach pays half again.
+    yieldOf(p, acc, twice) {
       let v = 0;
-      for (let i = 0; i < p.deps.length; i++) if (acc[i >> 5] & (1 << (i & 31))) v += p.deps[i].t;
+      for (let i = 0; i < p.deps.length; i++) {
+        const w = i >> 5, bit = 1 << (i & 31);
+        if (acc[w] & bit) v += p.deps[i].t * (p.overlap && (twice[w] & bit) ? 1.5 : 1);
+      }
       return v;
+    },
+    value(p, s) {
+      const acc = new Uint32Array(p.words), twice = new Uint32Array(p.words);
+      for (const i of s) { const b = p.cover[i].bits; for (let w = 0; w < p.words; w++) { twice[w] |= acc[w] & b[w]; acc[w] |= b[w]; } }
+      return Survey.yieldOf(p, acc, twice);
     },
     evaluate(p, s) {
       const v = Survey.value(p, s), sp = Survey.spent(p, s);
@@ -394,7 +434,7 @@
     },
     suggest(p, s) {
       const r = Survey.bestRatio(p, s);
-      if (r.j >= 0) return { kind: 'next', node: r.j, text: 'Advisory: rig ' + p.names[r.j] + ' (+' + r.gain + ' t).' };
+      if (r.j >= 0) return { kind: 'next', node: r.j, text: 'Advisory: rig ' + p.names[r.j] + ' (+' + Survey.format(r.gain) + ').' };
       if (Survey.complete(p, s)) {
         const po = Survey.polish(p, s);
         if (Survey.value(p, po.solution) > Survey.value(p, s)) return { kind: 'polish', text: 'A polish pass would raise the yield.' };
@@ -406,19 +446,18 @@
       const m = p.m;
       let best = -1, bs = [], work = 0;
       const cur = [];
-      const accs = [new Uint32Array(p.words)];
-      const valOf = (a) => { let v = 0; for (let i = 0; i < p.deps.length; i++) if (a[i >> 5] & (1 << (i & 31))) v += p.deps[i].t; return v; };
+      const accs = [new Uint32Array(p.words)], twos = [new Uint32Array(p.words)];
       const rec = (j, spent) => {
         work++;
-        const a = accs[cur.length];
-        const v = valOf(a);
+        const a = accs[cur.length], t2 = twos[cur.length];
+        const v = Survey.yieldOf(p, a, t2);
         if (v > best) { best = v; bs = cur.slice(); }
         for (let k = j; k < m; k++) {
           const c = p.sites[k].cost;
           if (spent + c > p.B) continue;
-          const na = new Uint32Array(p.words), b = p.cover[k].bits;
-          for (let w = 0; w < p.words; w++) na[w] = a[w] | b[w];
-          cur.push(k); accs[cur.length] = na;
+          const na = new Uint32Array(p.words), nt = new Uint32Array(p.words), b = p.cover[k].bits;
+          for (let w = 0; w < p.words; w++) { nt[w] = t2[w] | (a[w] & b[w]); na[w] = a[w] | b[w]; }
+          cur.push(k); accs[cur.length] = na; twos[cur.length] = nt;
           rec(k + 1, spent + c);
           cur.pop();
         }
@@ -427,7 +466,17 @@
       return { solution: bs, value: best, work, proven: true };
     },
     charted(p) { return Survey.exact(p); },
-    format(v) { return fmtNum(Math.round(v)) + ' t'; },
+    format(v) { return fmtNum(round1(v)) + ' t'; },
+    // Every layout within budget one change away: a rig added, removed, or swapped for another.
+    moves(p, s) {
+      const out = [], spent = Survey.spent(p, s);
+      for (let j = 0; j < p.m; j++) {
+        if (s.includes(j)) { out.push(s.filter((x) => x !== j)); continue; }
+        if (spent + p.sites[j].cost <= p.B) out.push(s.concat([j]));
+        for (let i = 0; i < s.length; i++) if (spent - p.sites[s[i]].cost + p.sites[j].cost <= p.B) { const c = s.slice(); c[i] = j; out.push(c); }
+      }
+      return out;
+    },
     describe(p, s) { return s.map((i) => p.names[i]).join(', '); },
   };
 
@@ -467,10 +516,11 @@
       }
       // busier stations draw more power to jam
       const cost = pts.map((q, i) => Math.max(1, Math.min(4, Math.round(0.4 + (deg[i] - 2) * 0.55 + rng() * 1.6))));
+      if (fitted(o, 'wideband')) deg.forEach((d, i) => { if (d >= 4) cost[i] = Math.max(1, cost[i] - 1); });
       const adj = pts.map(() => []);
       edges.forEach(([a, b], k) => { adj[a].push([b, k]); adj[b].push([a, k]); });
       const names = rng.shuffle(BIRDS).slice(0, n);
-      return { type: 'blockade', seed, n, pts, edges, cost, adj, names };
+      return { type: 'blockade', seed, n, pts, edges, cost, adj, names, mods: modsOf(o) };
     },
     empty() { return []; },
     uncovered(p, s) {
@@ -584,6 +634,12 @@
       return { solution: bs, value: best, work, proven: work <= 3e6 };
     },
     charted(p) { return Blockade.exact(p); },
+    // Every plan one change away: one station's jammer switched. Some leave a lane open.
+    moves(p, s) {
+      const out = [];
+      for (let v = 0; v < p.n; v++) out.push(s.includes(v) ? s.filter((x) => x !== v) : s.concat([v]));
+      return out;
+    },
     format(v) { return v + ' kc'; },
     describe(p, s) { return s.map((i) => p.names[i]).join(', '); },
   };
@@ -609,7 +665,7 @@
     generate(seed, o) {
       if (o.fixed) {
         const f = o.fixed;
-        return { type: 'treaty', seed, n: f.terms.length, terms: f.terms, delegates: f.delegates, clauses: f.clauses };
+        return { type: 'treaty', seed, n: f.terms.length, terms: f.terms, delegates: f.delegates, clauses: f.clauses, tongue: fitted(o, 'tongue'), mods: modsOf(o) };
       }
       const rng = makeRng('treaty|' + seed);
       const n = o.n || 9;
@@ -632,12 +688,19 @@
           made++;
         }
       });
-      return { type: 'treaty', seed, n, terms, delegates: DELEGATES, clauses };
+      return { type: 'treaty', seed, n, terms, delegates: DELEGATES, clauses, tongue: fitted(o, 'tongue'), mods: modsOf(o) };
     },
     empty(p) { return new Array(p.n).fill(false); },
     complete() { return true; },
     sat(c, a) { return c.lits.some(([v, pos]) => a[v] === pos); },
-    value(p, a) { return p.clauses.reduce((s, c) => s + (Treaty.sat(c, a) ? c.w : 0), 0); },
+    // The support won. With Silver Tongue, the single heaviest unmet demand counts as met.
+    value(p, a) {
+      let v = 0, miss = 0;
+      for (const c of p.clauses) { if (Treaty.sat(c, a)) v += c.w; else if (c.w > miss) miss = c.w; }
+      return v + (p.tongue ? miss : 0);
+    },
+    // Every term sheet one change away: one term switched.
+    moves(p, a) { return a.map((on, v) => { const t = a.slice(); t[v] = !t[v]; return t; }); },
     total(p) { return p.clauses.reduce((s, c) => s + c.w, 0); },
     evaluate(p, a) { return { valid: true, value: Treaty.value(p, a), note: '' }; },
     machine(p) {
@@ -759,7 +822,8 @@
       const worst = subs.reduce((a, x) => a + (x.shots || []).reduce((b, sh) => b + sh.dmg, 0), 0) + tracked + (at('grapple') >= 0 ? seized : 0);
       return { type: 'engagement', seed, doctrine, enemy: d.name, R, P: o.power || 5, subs,
         sensor: at('sensor'), engine: at('engine'), grapple: at('grapple'), drain: at('drain'),
-        tracked, seized, hull: worst + RESERVE };
+        tracked, seized, hull: worst + RESERVE,
+        shield: [SHIELD, SHIELD, SHIELD, fitted(o, 'aft') ? SHIELD * 2 : SHIELD], mods: modsOf(o) };
     },
     // No targets, and most of the reactor on the guns for when there are.
     empty(p) { return [Math.max(1, p.P - 2)]; },
@@ -809,9 +873,9 @@
         const spent = Math.min(guns, avail) - left;
         // Every arc costs 1, so the arcs that block the most are the best use of what is left.
         const up = [false, false, false, false];
-        [0, 1, 2, 3].filter((a) => inc[a] > 0).sort((a, b) => Math.min(SHIELD, inc[b]) - Math.min(SHIELD, inc[a]) || a - b)
+        [0, 1, 2, 3].filter((a) => inc[a] > 0).sort((a, b) => Math.min(p.shield[b], inc[b]) - Math.min(p.shield[a], inc[a]) || a - b)
           .slice(0, avail - spent).forEach((a) => { up[a] = true; });
-        const taken = inc.reduce((a, v, i) => a + Math.max(0, v - (up[i] ? SHIELD : 0)), 0);
+        const taken = inc.reduce((a, v, i) => a + Math.max(0, v - (up[i] ? p.shield[i] : 0)), 0);
         damage += taken;
         rounds.push({ r, avail, guns: spent, fired, up, inc, taken, rem: rem.slice() });
       }
@@ -901,6 +965,8 @@
       return { solution: best.solution, value: best.value, work, proven: true };
     },
     charted(p) { return Engagement.exact(p); },
+    // What polish may try: the dial, a target dropped, two neighbours swapped. Never a new target.
+    moves(p, s) { return Engagement.neighbours(p, s).filter((n) => n.kind !== 'add').map((n) => n.sol); },
     format(v) { return v + ' hull'; },
     describe(p, s) {
       return 'Guns ' + s[0] + '. ' + (s.length > 1 ? 'Order: ' + s.slice(1).map((i) => p.subs[i].name).join(', ') : 'No targets') + '.';
@@ -917,6 +983,27 @@
   }
   function better(mod, a, b) { return mod.dir === 'min' ? a < b - 1e-9 : a > b + 1e-9; }
 
+  // Deep polish (an engine mod): ordinary polish, then look two changes ahead. It may take a
+  // step that does not pay by itself when the step after it more than repays it. NAV-7 alone
+  // never gets this, and the charted best does not need it.
+  function deepPolish(mod, p, s) {
+    const first = mod.polish(p, s);
+    if (!first.ok) return first;
+    let t = first.solution, tv = mod.evaluate(p, t).value;
+    for (let guard = 0; guard < 20; guard++) {
+      let best = null, bv = tv;
+      for (const a of mod.moves(p, t)) {
+        for (const b of mod.moves(p, a)) {
+          const e = mod.evaluate(p, b);
+          if (e.valid && better(mod, e.value, bv)) { bv = e.value; best = b; }
+        }
+      }
+      if (!best) break;
+      t = mod.polish(p, best).solution; tv = mod.evaluate(p, t).value;
+    }
+    return { ok: true, solution: t };
+  }
+
   const SIZES = {
     haul: { S: { n: 8 }, M: { n: 11 }, L: { n: 14 } },
     survey: { S: { sites: 14, budget: 6, deposits: 40 }, M: { sites: 18, budget: 8, deposits: 54 }, L: { sites: 22, budget: 10, deposits: 70 } },
@@ -929,7 +1016,7 @@
     },
   };
 
-  const api = { RIG, makeRng, hashSeed, TYPES, SIZES, pctOf, better, W, H, ORE, BIRDS, DELEGATES, round1 };
+  const api = { RIG, makeRng, hashSeed, TYPES, SIZES, MODULES, SLOTS, deepPolish, pctOf, better, W, H, ORE, BIRDS, DELEGATES, round1 };
   root.K9Engine = api;
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })(typeof window !== 'undefined' ? window : globalThis);

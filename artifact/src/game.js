@@ -8,7 +8,8 @@
   // Seed codes read JOB-SIZE-CODE. A job's code is its label unless content gives a shorter one.
   const CODE = (type) => C.TYPE_INFO[type].code || C.TYPE_INFO[type].label;
   const TYPE_OF = Object.fromEntries(Object.keys(E.TYPES).map((t) => [CODE(t), t]));
-  const SEED_RE = new RegExp('^(' + Object.keys(TYPE_OF).join('|') + ')-(S|M|L)-([A-Z0-9]{1,8})$');
+  // A loadout rides on the end of a code: SURVEY-M-7F3A+LIGHT.OVERLAP.
+  const SEED_RE = new RegExp('^(' + Object.keys(TYPE_OF).join('|') + ')-(S|M|L)-([A-Z0-9]{1,8})(?:\\+([A-Z]+(?:\\.[A-Z]+)*))?$');
   const MODE_COL = { solo: COL.you, centaur: COL.cen, machine: COL.nav, best: COL.best };
   const DIALOG_SCREENS = ['prologue', 'brief', 'debrief'];
   const REPLAY_REST = 5; // seconds into a debrief replay at which every plan is fully drawn
@@ -49,7 +50,8 @@
 
   // ------------------------------------------------------------ persistent state (per viewer)
   const prog = Object.assign({ done: {}, rep: { aug: 0, con: 0, inq: 0, union: 0 }, runs: [] }, store.get('progress', {}));
-  const settings = Object.assign({ crt: true, sound: true }, store.get('settings', {}));
+  const settings = Object.assign({ crt: true, sound: true, patron: 'consortium' }, store.get('settings', {}));
+  if (!C.PATRONS[settings.patron]) settings.patron = 'consortium';
   let callsign = store.get('callsign', '') || ('PILOT-' + Math.floor(100 + Math.random() * 900));
   const saveProg = () => store.set('progress', prog);
 
@@ -93,7 +95,7 @@
   const G = {
     screen: 'title', t: 0, last: 0,
     m: null, hover: -1, dlg: null,
-    toast: null, warp: 0, layer: 'all', recordsTab: 'index', saveMsg: '', pendingImport: null,
+    toast: null, warp: 0, layer: 'all', recordsTab: 'index', saveMsg: '', pendingImport: null, arcade: { type: 'haul', size: 'M', mods: [] },
     cutters: [], sparks: [], replayT: 0,
     remote: { runs: null, rumors: null, canon: null, daily: {} },
   };
@@ -149,7 +151,7 @@
     const p = mod.generate(spec.seed, spec.params);
     G.m = Object.assign({}, spec, {
       mod, p, phase: 'solo', sol: mod.empty(p), undo: [], solo: null, cen: null,
-      adv: 3, polishes: 0, advNode: -1, navLog: [], machine: null, charted: null, logged: false, posted: false,
+      adv: advCap(spec), polishes: 0, advNode: -1, navLog: [], machine: null, charted: null, logged: false, posted: false,
     });
     G.cutters = [];
     if (spec.type === 'blockade') seedCutters();
@@ -167,10 +169,39 @@
     return { kind: 'daily', type, seed: 'daily-' + day + '-' + type, params: E.SIZES[type].M, seedKey: 'd-' + day + '-' + type,
       title: 'Daily ' + C.TYPE_INFO[type].label.toLowerCase(), place: 'Daily seed · ' + day, objective: objectiveFor(type), contact: 'winter', day };
   }
-  function arcadeSpec(type, size, code) {
-    return { kind: 'arcade', type, seed: 'arcade-' + code, params: E.SIZES[type][size], seedKey: 'a-' + type + '-' + size + '-' + code,
-      title: 'Arcade ' + C.TYPE_INFO[type].label.toLowerCase() + ' ' + size, place: 'Seed ' + CODE(type) + '-' + size + '-' + code,
-      objective: objectiveFor(type), contact: 'winter', code: CODE(type) + '-' + size + '-' + code };
+  // ------------------------------------------------------------ ship modules (arcade refit)
+  const modName = (id) => C.moduleName(id, settings.patron);
+  const modNames = (mods) => mods.map(modName).join(', ');
+  const hasMod = (m, id) => !!(m && m.mods && m.mods.includes(id));
+  const advCap = (m) => 3 + (hasMod(m, 'second') ? 1 : 0);
+  // Can this module change anything on this job? Ghost Hull needs a sensor bubble to act on.
+  function usable(id, type, params) {
+    const def = E.MODULES[id];
+    if (!def || (def.job !== type && def.job !== 'all')) return false;
+    return id !== 'ghost' || !!params.hazard;
+  }
+  // A loadout as it is keyed everywhere: known modules that fit the job, no repeats, sorted, at
+  // most what the ship carries. Returns null for anything else.
+  function loadout(type, size, ids) {
+    const mods = [...new Set(ids)].sort();
+    const ok = mods.length === ids.length && mods.length <= E.SLOTS && mods.every((id) => usable(id, type, E.SIZES[type][size]));
+    return ok ? mods : null;
+  }
+  function arcadeSpec(type, size, code, mods) {
+    const fit = mods || [];
+    const tail = fit.length ? '+' + fit.join('.') : '';
+    const full = CODE(type) + '-' + size + '-' + code + tail.toUpperCase();
+    return { kind: 'arcade', type, seed: 'arcade-' + code, params: fit.length ? Object.assign({}, E.SIZES[type][size], { mods: fit }) : E.SIZES[type][size],
+      seedKey: 'a-' + type + '-' + size + '-' + code + tail, mods: fit,
+      title: 'Arcade ' + C.TYPE_INFO[type].label.toLowerCase() + ' ' + size + (fit.length ? ' · refit' : ''), place: 'Seed ' + full,
+      objective: objectiveFor(type), contact: 'winter', code: full };
+  }
+  // A typed or linked seed code, with or without a loadout. Null when anything in it is off.
+  function specFromCode(text) {
+    const mm = String(text).trim().toUpperCase().replace(/ /g, '+').match(SEED_RE);
+    if (!mm) return null;
+    const type = TYPE_OF[mm[1]], mods = loadout(type, mm[2], mm[4] ? mm[4].toLowerCase().split('.') : []);
+    return mods ? arcadeSpec(type, mm[2], mm[3], mods) : null;
   }
   function objectiveFor(type) {
     return {
@@ -250,7 +281,7 @@
   function doPolish() {
     const m = G.m;
     const before = m.mod.evaluate(m.p, m.sol);
-    const r = m.mod.polish(m.p, m.sol);
+    const r = hasMod(m, 'deep') ? E.deepPolish(m.mod, m.p, m.sol) : m.mod.polish(m.p, m.sol);
     if (!r.ok) { navSay(r.reason); Snd.err(); toast('NAV-7: PLAN INCOMPLETE', COL.nav); renderConsole(); return; }
     m.polishes++;
     Snd.compute();
@@ -286,7 +317,7 @@
     const m = G.m;
     m.phase = 'centaur';
     m.sol = fromSolo && m.solo ? (Array.isArray(m.solo.solution) ? m.solo.solution.slice() : m.solo.solution) : m.mod.empty(m.p);
-    m.undo = []; m.adv = 3; m.polishes = 0; m.advNode = -1;
+    m.undo = []; m.adv = advCap(m); m.polishes = 0; m.advNode = -1;
     Snd.warp(); G.warp = 1;
     go('play');
   }
@@ -345,7 +376,7 @@
       bestProven: !!m.charted.proven,
       machinePct: m.pct.machine, soloPct: m.pct.solo, centaurPct: m.pct.centaur,
       bestPct: Math.max(m.pct.solo || 0, m.pct.centaur),
-      centaurWin: m.centaurWin, polishes: m.polishes, advisoriesUsed: 3 - m.adv,
+      centaurWin: m.centaurWin, polishes: m.polishes, advisoriesUsed: advCap(m) - m.adv,
       ts: Date.now(),
     };
   }
@@ -624,6 +655,7 @@
       if (m.type === 'engagement') kids.push(engagementPanel(m));
       if (cen) kids.push(section('NAV-7', h('div', { class: 'navlog' }, m.navLog.map((l) => h('p', {}, l)))));
       kids.push(section('Objective', h('p', {}, m.objective), h('p', { class: 'muted small' }, info.how)));
+      if (m.mods && m.mods.length) kids.push(refitPanel(m.mods));
       const foot = h('div', { class: 'row' });
       if (!cen) foot.append(btn('Skip to centaur run', skipSolo, 'ghost'));
       foot.append(btn('◂ Abort job', () => go(m.kind === 'campaign' ? 'campaign' : m.kind === 'daily' ? 'daily' : 'arcade'), 'ghost'));
@@ -645,9 +677,10 @@
           h('tbody', {},
             row('NAV-7 alone', 'r-nav', m.machine.value, m.pct.machine, 'one pass'),
             row('You alone', 'r-you', m.solo ? m.solo.value : null, m.pct.solo, m.solo ? '' : 'skipped'),
-            row('You + NAV-7', 'r-cen', m.cen.value, m.pct.centaur, m.polishes + ' polish, ' + (3 - m.adv) + ' adv'),
+            row('You + NAV-7', 'r-cen', m.cen.value, m.pct.centaur, m.polishes + ' polish, ' + (advCap(m) - m.adv) + ' adv'),
             row('Charted best', 'r-best', m.charted.value, 100, m.charted.proven ? 'proven, ' + m.charted.work.toLocaleString('en-US') + ' states' : 'best known')))),
         h('p', { class: 'muted small' }, 'NAV-7’s procedure: ' + m.machine.procedure),
+        m.mods && m.mods.length ? h('p', { class: 'muted small' }, 'Refit, for all three runs and the charted best: ' + modNames(m.mods) + '.') : null,
         h('div', { class: 'row layers', role: 'group', 'aria-label': 'Show on screen' },
           ['all', 'machine', 'solo', 'centaur', 'best'].map((k) => btn({ all: 'All', machine: 'NAV-7', solo: 'Solo', centaur: 'Centaur', best: 'Best' }[k], () => { G.layer = k; G.replayT = reduced ? REPLAY_REST : 0; renderConsole(); }, 'chip' + (G.layer === k ? ' on' : ''), { 'aria-pressed': G.layer === k ? 'true' : 'false' })),
           // With reduced motion the replay does not run, so there is nothing to pause.
@@ -689,26 +722,51 @@
     },
 
     arcade() {
-      const typeSel = h('select', { id: 'ar-type', class: 'field' }, Object.keys(E.TYPES).map((t) => h('option', { value: t }, C.TYPE_INFO[t].label)));
-      const sizeSel = h('select', { id: 'ar-size', class: 'field' }, ['S', 'M', 'L'].map((s) => h('option', { value: s, selected: s === 'M' ? true : null }, { S: 'Small', M: 'Medium', L: 'Large' }[s])));
-      const code = h('input', { id: 'ar-code', class: 'field', placeholder: 'e.g. HAUL-M-7F3A', maxlength: '24', autocomplete: 'off', spellcheck: 'false' });
+      const A = G.arcade, params = E.SIZES[A.type][A.size];
+      const options = Object.keys(E.MODULES).filter((id) => usable(id, A.type, params));
+      A.mods = A.mods.filter((id) => options.includes(id));
+      const pick = (id, key, list, labelOf) => {
+        const sel = h('select', { id, class: 'field' }, list.map((v) => h('option', { value: v, selected: v === (key === 'patron' ? settings.patron : A[key]) ? true : null }, labelOf(v))));
+        sel.addEventListener('change', () => {
+          if (key === 'patron') { settings.patron = sel.value; store.set('settings', settings); } else A[key] = sel.value;
+          renderConsole();
+        });
+        return sel;
+      };
+      const typeSel = pick('ar-type', 'type', Object.keys(E.TYPES), (t) => C.TYPE_INFO[t].label);
+      const sizeSel = pick('ar-size', 'size', ['S', 'M', 'L'], (s) => ({ S: 'Small', M: 'Medium', L: 'Large' }[s]));
+      const patronSel = pick('ar-patron', 'patron', Object.keys(C.PATRONS), (k) => C.PATRONS[k]);
+      const full = A.mods.length >= E.SLOTS;
+      const mods = options.map((id) => {
+        const on = A.mods.includes(id), def = C.MODULES[id];
+        return h('button', { id: 'mod-' + id, class: 'term mod' + (on ? ' on' : ''), type: 'button', role: 'switch', 'aria-checked': on ? 'true' : 'false', disabled: !on && full ? true : null,
+          onclick: () => { A.mods = on ? A.mods.filter((x) => x !== id) : A.mods.concat([id]); Snd.init(); on ? Snd.undo() : Snd.place(); renderConsole(); } },
+          h('span', { class: 'switch', 'aria-hidden': 'true' }),
+          h('span', {}, h('b', {}, modName(id)), def.contraband ? h('span', { class: 'tag' }, C.REFIT.contraband) : null, h('span', { class: 'muted small' }, def.rule)));
+      });
+      const code = h('input', { id: 'ar-code', class: 'field', placeholder: 'e.g. HAUL-M-7F3A', maxlength: '48', autocomplete: 'off', spellcheck: 'false' });
       const err = h('p', { class: 'note', hidden: true });
       return h('div', { class: 'stack' },
         section('Arcade',
           h('p', { class: 'muted small' }, 'Generate a fresh map, or enter a seed code to fly the same map as a friend.'),
           h('div', { class: 'form' },
             h('label', { for: 'ar-type' }, 'Job'), typeSel,
-            h('label', { for: 'ar-size' }, 'Size'), sizeSel),
-          h('div', { class: 'row' }, btn('Generate map ▸', () => {
-            const c = Math.random().toString(36).slice(2, 6).toUpperCase();
-            openRun(arcadeSpec(typeSel.value, sizeSel.value, c));
-          }, 'primary'))),
+            h('label', { for: 'ar-size' }, 'Size'), sizeSel)),
+        section('Refit · ' + A.mods.length + ' of ' + E.SLOTS,
+          h('p', { class: 'muted small' }, C.REFIT.intro),
+          mods.length ? h('div', { class: 'terms', role: 'group', 'aria-label': 'Modules' }, mods) : h('p', { class: 'muted small' }, C.REFIT.none),
+          h('div', { class: 'form' }, h('label', { for: 'ar-patron' }, 'Patron'), patronSel),
+          h('p', { class: 'muted small' }, C.REFIT.patron)),
+        h('div', { class: 'row' }, btn('Generate map ▸', () => {
+          const c = Math.random().toString(36).slice(2, 6).toUpperCase();
+          openRun(arcadeSpec(A.type, A.size, c, loadout(A.type, A.size, A.mods) || []));
+        }, 'primary', { id: 'btn-generate' })),
         section('Seed code',
           h('div', { class: 'form' }, h('label', { for: 'ar-code' }, 'Code'), code), err,
           h('div', { class: 'row' }, btn('Fly this seed', () => {
-            const mm = code.value.trim().toUpperCase().match(SEED_RE);
-            if (!mm) { err.hidden = false; err.textContent = 'Seed codes look like HAUL-M-7F3A: job, size, then the code.'; return; }
-            openRun(arcadeSpec(TYPE_OF[mm[1]], mm[2], mm[3]));
+            const spec = specFromCode(code.value);
+            if (!spec) { err.hidden = false; err.textContent = 'Seed codes look like HAUL-M-7F3A: job, size, then the code. A refit follows a plus sign.'; return; }
+            openRun(spec);
           }))),
         btn('◂ Back', () => go('title'), 'ghost'));
     },
@@ -719,8 +777,8 @@
       let body;
       const shared = G.remote.runs;
       if (G.recordsTab === 'index') {
-        const all = shared || prog.runs;
-        body = indexPanel(all, shared ? 'All pilots' : 'This device');
+        const all = (shared || prog.runs).filter(unfitted);
+        body = h('div', { class: 'stack' }, indexPanel(all, shared ? 'All pilots' : 'This device'), h('p', { class: 'muted small' }, C.REFIT.index));
       } else if (G.recordsTab === 'today') {
         const day = utcDay();
         if (!shared) body = section(null, h('p', { class: 'muted' }, PUBLIC ? 'This edition keeps no shared boards. Fly today\u2019s Daily seed, then share your result card: everyone gets the same maps.' : cap.dbTried ? 'Shared boards are not available in this view. Your own runs are under My runs.' : 'Connecting to the Records\u2026'));
@@ -771,6 +829,8 @@
     },
   };
 
+  // A refit run is a different puzzle from the same seed flown plain: keep it out of the headline.
+  const unfitted = (r) => !String(r.seedKey).includes('+');
   function boardTable(rows) {
     return h('div', { class: 'table-wrap' }, h('table', { class: 'board' },
       h('thead', {}, h('tr', {}, h('th', {}, 'Pilot'), h('th', { class: 'num' }, 'Solo'), h('th', { class: 'num' }, '+NAV'), h('th', { class: 'num' }, 'NAV'))),
@@ -848,12 +908,14 @@
   const saveSchema = () => ({
     campaigns: Object.fromEntries(C.CAMPAIGN.map((c) => [c.id, c.type])),
     typeDirs: Object.fromEntries(Object.keys(E.TYPES).map((t) => [t, E.TYPES[t].dir])),
+    modules: Object.fromEntries(Object.keys(E.MODULES).map((id) => [id, E.MODULES[id].job])), slots: E.SLOTS,
     // Titles are rebuilt from the same specs the game flies, never read from the file.
     titleOf(kind, type, seedKey) {
       if (kind === 'campaign') return campaignSpec(C.CAMPAIGN.find((c) => c.id === seedKey)).title;
       if (kind === 'daily') return dailySpec(type).title;
-      const [, , size, code] = seedKey.split('-');
-      return arcadeSpec(type, size, code).title;
+      const [, , size, rest] = seedKey.split('-');
+      const [code, tail] = rest.split('+');
+      return arcadeSpec(type, size, code, tail ? tail.split('.') : []).title;
     },
   });
   function savePanel() {
@@ -951,6 +1013,9 @@
       end ? h('p', { class: 'note' }, end) : null);
     return h('div', { class: 'stack' }, dial, section('Kill order', listed), enemy, log);
   }
+  function refitPanel(mods) {
+    return section('Refit', h('ul', { class: 'subs refit' }, mods.map((id) => h('li', {}, h('b', {}, modName(id)), h('span', { class: 'muted small' }, C.MODULES[id].rule)))));
+  }
   function treatyPanel(m) {
     const p = m.p, T = E.TYPES.treaty;
     const terms = h('div', { class: 'terms', role: 'group', 'aria-label': 'Treaty terms' }, p.terms.map((t, i) =>
@@ -995,6 +1060,7 @@
     startRun(spec);
     G.screen = 'brief';
     const intro = [{ who: 'sys', text: spec.place.toUpperCase() }, { who: 'nav', text: 'Job loaded: ' + spec.objective + ' This engine will stay unlinked until your solo plan is filed.' }];
+    if (spec.mods && spec.mods.length) intro.push({ who: 'nav', text: fill(C.REFIT.fitted, modNames(spec.mods)) });
     if (spec.type === 'engagement') {
       const p = G.m.p, rule = C.ENGAGEMENT.rules[p.doctrine];
       intro.splice(1, 0, { who: 'sys', text: fill(C.ENGAGEMENT.contact, p.enemy).replace('{r}', p.R) });
@@ -1149,7 +1215,7 @@
     const on = new Set(main.sol || []);
     p.sites.forEach((s, i) => {
       const placed = on.has(i);
-      R.rock(ctx, s.x, s.y, 6 + s.cost * 3.5, 'rk' + p.seed + i, t, placed ? main.color : COL.muted, placed ? 1 : 0.85);
+      R.rock(ctx, s.x, s.y, 6 + (s.cls || s.cost) * 3.5, 'rk' + p.seed + i, t, placed ? main.color : COL.muted, placed ? 1 : 0.85);
       R.vtext(ctx, p.names[i].replace('ROCK ', ''), s.x, s.y - 23, 7, placed ? main.color : COL.muted, 'center', 0.9);
       R.vtext(ctx, s.cost + 'CR', s.x, s.y + 16, 6.5, COL.muted, 'center', 0.8);
       if (interactive && G.hover === i) R.circle(ctx, s.x, s.y, 20, main.color, 1, 0.7);
@@ -1320,7 +1386,7 @@
       ctx.beginPath(); ctx.arc(me.x, me.y, AR, ARC_DIR[a] - 0.62, ARC_DIR[a] + 0.62); ctx.stroke(); ctx.restore();
       const q = arcAt(a, AR + 30);
       // In a replay: what the fire on this side did, after the arc took its share.
-      const through = showing && showing.inc[a] ? Math.max(0, showing.inc[a] - (showing.up[a] ? T.SHIELD : 0)) : -1;
+      const through = showing && showing.inc[a] ? Math.max(0, showing.inc[a] - (showing.up[a] ? p.shield[a] : 0)) : -1;
       const tail = beat < 0 && count ? ' ' + count + '/' + n : through > 0 ? ' · -' + through : through === 0 ? ' · HELD' : '';
       R.vtext(ctx, name + tail, q.x, q.y - 4, 7, through > 0 ? COL.inq : up ? L.color : COL.muted, a === 0 ? 'left' : a === 3 ? 'right' : 'center', 0.9);
     });
@@ -1446,7 +1512,7 @@
       const title = { daily: 'DAILY SEED', arcade: 'ARCADE', records: 'THE RECORDS', rumors: 'RUMOR NET', chronicle: 'CHRONICLE' }[G.screen];
       R.vtext(ctx, title, 60, 110, 34, COL.text);
       if (G.screen === 'records') {
-        const all = G.remote.runs || prog.runs;
+        const all = (G.remote.runs || prog.runs).filter(unfitted);
         if (all.length) {
           const idx = (all.filter((r) => r.centaurWin).length / all.length) * 100;
           R.vtext(ctx, 'CENTAUR INDEX', 60, 190, 10, COL.muted);
@@ -1555,8 +1621,7 @@
     try { c = new URLSearchParams(location.search).get('c'); } catch (e) { return null; }
     if (c == null) return null;
     try { history.replaceState(null, '', location.pathname); } catch (e) { /* keep the query */ }
-    const mm = c.trim().toUpperCase().match(SEED_RE);
-    return mm ? arcadeSpec(TYPE_OF[mm[1]], mm[2], mm[3]) : null;
+    return specFromCode(c);
   }
   function start(data) {
     bindCanvas();

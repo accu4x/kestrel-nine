@@ -179,6 +179,13 @@ td.num, th.num { text-align: right; font-family: var(--hh-font-mono); font-varia
 .subs li.adv, .aims li.adv { box-shadow: 0 0 0 1px var(--k9-nav); border-radius: var(--hh-radius-cell); }
 .subs .place { font-family: var(--hh-font-mono); color: var(--hh-accent); min-width: 44px; text-align: center; }
 
+/* arcade refit */
+.term[disabled] { opacity: .45; cursor: not-allowed; }
+.term.mod > span:last-child { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.term.mod b { font-family: var(--hh-font-mono); font-weight: 500; font-size: 12px; letter-spacing: .06em; }
+.term.mod .tag { font-family: var(--hh-font-mono); font-size: 10px; letter-spacing: var(--hh-track-label); text-transform: uppercase; color: var(--k9-nav); }
+.subs.refit li { grid-template-columns: minmax(0, 120px) minmax(0, 1fr); }
+
 /* campaign list */
 .missions { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--hh-space-2); }
 .mission { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px var(--hh-space-3); align-items: center; padding: 10px 12px; background: var(--hh-ground); border-radius: var(--hh-radius-input); box-shadow: var(--hh-edge); }

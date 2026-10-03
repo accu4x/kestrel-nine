@@ -313,6 +313,9 @@ Two editions, one source (`node artifact/build.mjs` and `node artifact/build.mjs
         every existing seed.
       - `[open]` Light Rigs makes the charted best on a large Survey slower: about half a second
         in Node at worst, where the plain map takes about a tenth. Not timed on an iPad.
+    - **Live 2026-10-02:** batch 1 merged as 5e215c6 and released in all three editions: home
+      version 8, public version 10, and the site edition, whose served files match that build.
+      Ghost Hull in the Arcade was pushed after that merge, so it follows in its own pull request.
 33. **2026-09-30: Ship classes with strengths and weaknesses.** Dan's idea. Six classes
     (Courier, Freighter, Cutter, Picket, Envoy, Salvage tug). Classes change the loadout and the
     run economy; modules change the puzzle. Design doc §4. Whether the *Second Wind* is a Courier
